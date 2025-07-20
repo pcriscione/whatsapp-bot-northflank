@@ -55,8 +55,7 @@ client.on('message', async msg => {
 1️⃣ Ver la carta  
 2️⃣ Consultar horarios  
 3️⃣ Hacer una reserva  
-4️⃣ Conocer nuestra ubicación  
-9️⃣ Participar del sorteo`);
+4️⃣ Conocer nuestra ubicación;
     return;
   }
 
@@ -81,7 +80,7 @@ client.on('message', async msg => {
       await msg.reply(`📍 Estamos ubicados en Paseo Colina Sur 14500, local 102 y 106. https://maps.app.goo.gl/rECKibRJ2Sz6RgfZA`);
       break;
 
-    case '9':
+    case '86':
       inscripcionesSorteo.set(msg.from, { estado: 'esperando_nombre', telefono });
       await msg.reply(`🎁 ¡Estás participando del sorteo!
 
@@ -95,8 +94,7 @@ Por favor respondé este mensaje con tu nombre completo para finalizar tu inscri
 1️⃣ Ver la carta  
 2️⃣ Consultar horarios  
 3️⃣ Hacer una reserva  
-4️⃣ Conocer nuestra ubicación  
-9️⃣ Participar del sorteo`);
+4️⃣ Conocer nuestra ubicación;
   }
 });
 
