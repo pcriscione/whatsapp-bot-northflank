@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const inscripcionesSorteo = new Map(); // userId → { estado, teléfono }
 
 // Inicializar cliente de WhatsApp
 const client = new Client({
