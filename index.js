@@ -42,3 +42,20 @@ app.get('/', (_, res) => {
 app.listen(port, () => {
   console.log(`🌐 Servidor web escuchando en http://localhost:${port}`);
 });
+
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Endpoint para servir el QR como imagen
+app.get('/qr', (req, res) => {
+  const qrPath = path.join(__dirname, 'qr.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.send('⚠️ QR aún no generado. Esperá unos segundos...');
+  }
+});
