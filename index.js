@@ -40,7 +40,7 @@ client.on('ready', () => {
 // Evento: mensaje entrante
 client.on('message', async msg => {
   if (msg.body.toLowerCase() === 'hola') {
-    await msg.reply('👋 ¡Hola! Soy el bot del restaurante. ¿Quieres ver los horarios, menú o hacer una reserva?');
+    await msg.reply('👋 ¡Hola! Soy el bot del restaurante. ¿Quieres ver los horarios, dirección, menú o hacer una reserva?');
   }
 });
 
