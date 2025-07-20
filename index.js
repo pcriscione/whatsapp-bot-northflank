@@ -66,7 +66,7 @@ client.on('message', async msg => {
 1️⃣ Ver la carta
 2️⃣ Consultar horarios
 3️⃣ Hacer una reserva
-4️⃣ Ubicación de los restaurantes      
+4️⃣ Conocer nuestra ubicación      
 Escribí el número de la opción que quieras.`);
   }
 });
