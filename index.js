@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Crear cliente de WhatsApp
+// Inicializar cliente de WhatsApp
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
@@ -19,18 +19,23 @@ const client = new Client({
   }
 });
 
-// Generar QR en consola y guardar imagen
+// Evento: se genera el QR
 client.on('qr', async qr => {
   qrcodeTerminal.generate(qr, { small: true });
-  await QRCode.toFile('./qr.png', qr);
+  try {
+    await QRCode.toFile(path.join(__dirname, 'qr.png'), qr);
+    console.log('📷 QR guardado como qr.png');
+  } catch (err) {
+    console.error('❌ Error guardando el QR:', err);
+  }
 });
 
-// Cuando el bot esté listo
+// Evento: bot listo
 client.on('ready', () => {
   console.log('✅ Bot is ready!');
 });
 
-// Respuesta automática
+// Evento: mensaje entrante
 client.on('message', async msg => {
   if (msg.body.toLowerCase() === 'hola') {
     await msg.reply('👋 ¡Hola! Soy el bot del restaurante. ¿Querés ver los horarios, menú o hacer una reserva?');
@@ -39,7 +44,7 @@ client.on('message', async msg => {
 
 client.initialize();
 
-// Servidor Express para mostrar el estado y el QR
+// Servidor Express para el QR y status
 const app = express();
 const port = process.env.PORT || 3000;
 
