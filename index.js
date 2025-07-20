@@ -52,7 +52,7 @@ Escribí el número de la opción que querés.`);
 
   switch (texto) {
     case '1':
-      await msg.reply(`🍽️ Ambas cartas: https://www.laprincesa.cl/carta);
+      await msg.reply(`🍽️ Ambas cartas: https://www.laprincesa.cl/carta`);
       break;
 
     case '2':
