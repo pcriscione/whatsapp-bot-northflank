@@ -11,8 +11,12 @@ const client = new Client({
 });
 
 client.on('qr', qr => {
-  qrcode.generate(qr, { small: true });
+  QRCode.toFile('./qr.png', qr, function (err) {
+    if (err) throw err;
+    console.log('✅ QR guardado como qr.png');
+  });
 });
+
 
 client.on('ready', () => {
   console.log('✅ Bot is ready!');
