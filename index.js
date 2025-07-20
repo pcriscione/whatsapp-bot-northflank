@@ -24,3 +24,16 @@ client.on('message', async msg => {
 });
 
 client.initialize();
+
+import express from 'express';
+
+const app = express();
+const port = process.env.PORT || 3000;
+
+app.get('/', (_, res) => {
+  res.send('🟢 Bot de WhatsApp activo en Northflank');
+});
+
+app.listen(port, () => {
+  console.log(`🌐 Servidor web escuchando en http://localhost:${port}`);
+});
