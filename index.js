@@ -38,10 +38,21 @@ client.on('ready', () => {
   console.log('✅ Bot is ready!');
 });
 
-// Evento: mensaje entrante
+// Evento: menú 
 client.on('message', async msg => {
   const texto = msg.body.trim().toLowerCase();
+  const telefono = msg.from.split('@')[0];
+  const usuario = inscripcionesSorteo.get(msg.from);
 
+  // Paso 1: Si está esperando nombre, lo registramos y salimos
+  if (usuario?.estado === 'esperando_nombre') {
+    usuario.nombre = msg.body.trim();
+    usuario.estado = 'completado';
+    await msg.reply(`✅ ¡Gracias ${usuario.nombre}! Estás participando del sorteo con el número ${usuario.telefono}. ¡Mucha suerte! 🎉`);
+    return;
+  }
+
+  // Paso 2: Menú de opciones
   switch (texto) {
     case '1':
       await msg.reply(`🍽️ Ambas cartas: https://www.laprincesa.cl/carta`);
@@ -58,31 +69,30 @@ client.on('message', async msg => {
       await msg.reply(`📅 Para hacer una reserva: https://tinyurl.com/uaxzmbr6`);
       break;
 
-   case '4':
+    case '4':
       await msg.reply(`📍 Estamos ubicados en Paseo Colina Sur 14500, local 102 y 106. https://maps.app.goo.gl/rECKibRJ2Sz6RgfZA`);
       break;
-  
+
     case '9':
-    const telefono = msg.from.split('@')[0];
-    inscripcionesSorteo.set(msg.from, { estado: 'esperando_nombre', telefono });
-    await msg.reply(`🎁 ¡Estás participando del sorteo!
+      inscripcionesSorteo.set(msg.from, { estado: 'esperando_nombre', telefono });
+      await msg.reply(`🎁 ¡Estás participando del sorteo!
 
-  Por favor respondé este mensaje con tu nombre completo para finalizar tu inscripción.
+Por favor respondé este mensaje con tu nombre completo para finalizar tu inscripción.
 
-  ✅ Hemos registrado tu número: ${telefono}`);
-  break;
-  
+✅ Hemos registrado tu número: ${telefono}`);
+      break;
+
     default:
       await msg.reply(`👋 ¡Hola! Soy Alma, bot de La Princesa y Ramona. Favor indícame qué quieres hacer:
-1️⃣ Ver la carta
-2️⃣ Consultar horarios
-3️⃣ Hacer una reserva
-4️⃣ Conocer nuestra ubicación      
+1️⃣ Ver la carta  
+2️⃣ Consultar horarios  
+3️⃣ Hacer una reserva  
+4️⃣ Conocer nuestra ubicación  
+9️⃣ Participar del sorteo  
+
 Escribí el número de la opción que quieras.`);
   }
 });
-
-client.initialize();
 
 
 // Servidor Express para el QR y status
