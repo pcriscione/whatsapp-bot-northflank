@@ -1,14 +1,17 @@
 import pkg from 'whatsapp-web.js';
 const { Client, LocalAuth } = pkg;
 
+import qrcodeTerminal from 'qrcode-terminal';
 import QRCode from 'qrcode';
-import qrcode from 'qrcode-terminal';
-import fs from 'fs';
 import express from 'express';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Inicializar cliente de WhatsApp
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Crear cliente de WhatsApp
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
@@ -16,15 +19,18 @@ const client = new Client({
   }
 });
 
+// Generar QR en consola y guardar imagen
 client.on('qr', async qr => {
-  qrcode.generate(qr, { small: true }); // Muestra en consola
-  await QRCode.toFile('./qr.png', qr);  // Guarda como imagen
+  qrcodeTerminal.generate(qr, { small: true });
+  await QRCode.toFile('./qr.png', qr);
 });
 
+// Cuando el bot esté listo
 client.on('ready', () => {
   console.log('✅ Bot is ready!');
 });
 
+// Respuesta automática
 client.on('message', async msg => {
   if (msg.body.toLowerCase() === 'hola') {
     await msg.reply('👋 ¡Hola! Soy el bot del restaurante. ¿Querés ver los horarios, menú o hacer una reserva?');
@@ -33,17 +39,13 @@ client.on('message', async msg => {
 
 client.initialize();
 
-// Inicializar servidor Express
+// Servidor Express para mostrar el estado y el QR
 const app = express();
 const port = process.env.PORT || 3000;
 
 app.get('/', (_, res) => {
   res.send('🟢 Bot de WhatsApp activo en Northflank');
 });
-
-// Ruta para ver el QR
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 app.get('/qr', (req, res) => {
   const qrPath = path.join(__dirname, 'qr.png');
