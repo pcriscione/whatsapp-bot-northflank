@@ -10,12 +10,15 @@ const client = new Client({
   }
 });
 
-client.on('qr', qr => {
-  QRCode.toFile('./qr.png', qr, function (err) {
-    if (err) throw err;
-    console.log('✅ QR guardado como qr.png');
-  });
+import { writeFileSync } from 'fs';
+import qrcode from 'qrcode-terminal';
+import QRCode from 'qrcode';
+
+client.on('qr', async qr => {
+  qrcode.generate(qr, { small: true });
+  await QRCode.toFile('./qr.png', qr);
 });
+
 
 
 client.on('ready', () => {
