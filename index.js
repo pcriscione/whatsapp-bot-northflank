@@ -13,7 +13,9 @@ const __dirname = path.dirname(__filename);
 
 // Inicializar cliente de WhatsApp
 const client = new Client({
-  authStrategy: new LocalAuth(),
+  authStrategy: new LocalAuth({
+    dataPath: '/wwebjs_auth'
+  }),
   puppeteer: {
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   }
