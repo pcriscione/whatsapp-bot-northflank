@@ -41,15 +41,6 @@ client.on('ready', () => {
 client.on('message', async msg => {
   const texto = msg.body.trim().toLowerCase();
 
-  if (texto === 'hola') {
-    await msg.reply(`👋 ¡Hola! Soy el bot del restaurante. ¿Qué querés hacer?
-1️⃣ Ver el menú
-2️⃣ Consultar horarios
-3️⃣ Hacer una reserva
-Escribí el número de la opción que querés.`);
-    return;
-  }
-
   switch (texto) {
     case '1':
       await msg.reply(`🍽️ Ambas cartas: https://www.laprincesa.cl/carta`);
@@ -64,6 +55,10 @@ Escribí el número de la opción que querés.`);
 
     case '3':
       await msg.reply(`📅 Para hacer una reserva: https://tinyurl.com/uaxzmbr6`);
+      break;
+
+   case '4':
+      await msg.reply(`📍 Estamos ubicados en Paseo Colina Sur 14500, local 102 y 106. https://maps.app.goo.gl/rECKibRJ2Sz6RgfZA`);
       break;
 
     default:
