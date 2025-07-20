@@ -103,6 +103,7 @@ Escribí el número de la opción que quieras.`);
   }
 });
 
+client.initialize();
 
 // Servidor Express para el QR y status
 const app = express();
