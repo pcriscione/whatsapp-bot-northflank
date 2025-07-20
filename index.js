@@ -52,33 +52,27 @@ Escribí el número de la opción que querés.`);
 
   switch (texto) {
     case '1':
-      await msg.reply(`🍽️ Nuestro menú incluye:
-- Ceviche clásico
-- Lomo saltado
-- Ají de gallina
-- Suspiro limeño`);
+      await msg.reply(`🍽️ Ambas cartas: https://www.laprincesa.cl/carta);
       break;
 
     case '2':
       await msg.reply(`⏰ Horarios:
-- Lunes a viernes: 12:00 a 22:00
-- Sábados y domingos: 13:00 a 23:00`);
+- Lunes a viernes: 08:30 a 23:00
+- Sábados: 09:00 a 23:00        
+- Domingos: 09:00 a 20:00`);
       break;
 
     case '3':
-      await msg.reply(`📅 Para hacer una reserva, por favor escribinos:
-- Nombre
-- Día y hora
-- Número de personas
-
-¡Te confirmaremos enseguida!`);
+      await msg.reply(`📅 Para hacer una reserva: https://tinyurl.com/uaxzmbr6`);
       break;
 
     default:
-      await msg.reply(`❓ No entiendo tu mensaje. Por favor escribí:
-1️⃣ para ver el menú
-2️⃣ para consultar los horarios
-3️⃣ para hacer una reserva`);
+      await msg.reply(`👋 ¡Hola! Soy Alma, bot de La Princesa y Ramona. Favor indícame qué quieres hacer:
+1️⃣ Ver la carta
+2️⃣ Consultar horarios
+3️⃣ Hacer una reserva
+4️⃣ Ubicación de los restaurantes      
+Escribí el número de la opción que quieras.`);
   }
 });
 
