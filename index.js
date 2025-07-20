@@ -60,7 +60,17 @@ client.on('message', async msg => {
    case '4':
       await msg.reply(`📍 Estamos ubicados en Paseo Colina Sur 14500, local 102 y 106. https://maps.app.goo.gl/rECKibRJ2Sz6RgfZA`);
       break;
+  
+    case '9':
+    const telefono = msg.from.split('@')[0];
+    inscripcionesSorteo.set(msg.from, { estado: 'esperando_nombre', telefono });
+    await msg.reply(`🎁 ¡Estás participando del sorteo!
 
+  Por favor respondé este mensaje con tu nombre completo para finalizar tu inscripción.
+
+  ✅ Hemos registrado tu número: ${telefono}`);
+  break;
+  
     default:
       await msg.reply(`👋 ¡Hola! Soy Alma, bot de La Princesa y Ramona. Favor indícame qué quieres hacer:
 1️⃣ Ver la carta
