@@ -39,16 +39,25 @@ client.on('ready', () => {
 });
 
 // Evento: menú 
-client.on('message', async msg => {
+  client.on('message', async msg => {
   const texto = msg.body.trim().toLowerCase();
   const telefono = msg.from.split('@')[0];
   const usuario = inscripcionesSorteo.get(msg.from);
 
-  // Paso 1: Si está esperando nombre, lo registramos y salimos
+  // Paso 1: Si está esperando nombre, lo registramos y mostramos el menú
   if (usuario?.estado === 'esperando_nombre') {
     usuario.nombre = msg.body.trim();
     usuario.estado = 'completado';
     await msg.reply(`✅ ¡Gracias ${usuario.nombre}! Estás participando del sorteo con el número ${usuario.telefono}. ¡Mucha suerte! 🎉`);
+    
+    await msg.reply(`👋 ¡Hola! Soy Alma, bot de La Princesa y Ramona. Favor indícame qué quieres hacer:
+1️⃣ Ver la carta  
+2️⃣ Consultar horarios  
+3️⃣ Hacer una reserva  
+4️⃣ Conocer nuestra ubicación  
+9️⃣ Participar del sorteo  
+
+Escribí el número de la opción que quieras.`);
     return;
   }
 
