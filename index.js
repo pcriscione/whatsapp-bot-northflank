@@ -54,12 +54,16 @@ client.on('message', async msg => {
   const usuario = inscripcionesSorteo.get(msg.from);
 
   // Paso 1: Si el usuario está en proceso de sorteo, guardar el nombre
-  if (usuario?.estado === 'esperando_nombre') {
-    usuario.nombre = msg.body.trim();
+   if (usuario?.estado === 'esperando_nombre') {
+    const nombre = msg.body.trim();
+    await db.query(
+      'INSERT INTO wp_contactos_wsap (telefono, nombre) VALUES (?, ?) ON DUPLICATE KEY UPDATE nombre = VALUES(nombre)',
+      [usuario.telefono, nombre]
+    );
     usuario.estado = 'completado';
-    await msg.reply(`✅ ¡Gracias ${usuario.nombre}! Estás participando del sorteo con el número ${usuario.telefono}. ¡Mucha suerte! 🎉`);
+    await msg.reply(`✅ ¡Gracias ${nombre}! Estás participando del sorteo con el número ${usuario.telefono}. ¡Mucha suerte! 🎉`);
 
-    // Mostramos nuevamente el menú
+    // Mostrar nuevamente el menú
     await msg.reply(`👋 ¿Qué querés hacer ahora?
 1️⃣ Ver la carta  
 2️⃣ Consultar horarios  
@@ -67,6 +71,7 @@ client.on('message', async msg => {
 4️⃣ Conocer nuestra ubicación`);
     return;
   }
+
 
   // Paso 2: Responder opciones del menú
   switch (texto) {
