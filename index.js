@@ -54,16 +54,12 @@ client.on('message', async msg => {
   const usuario = inscripcionesSorteo.get(msg.from);
 
   // Paso 1: Si el usuario está en proceso de sorteo, guardar el nombre
-   if (usuario?.estado === 'esperando_nombre') {
-    const nombre = msg.body.trim();
-    await db.query(
-      'INSERT INTO wp_contactos_wsap (telefono, nombre) VALUES (?, ?) ON DUPLICATE KEY UPDATE nombre = VALUES(nombre)',
-      [usuario.telefono, nombre]
-    );
+  if (usuario?.estado === 'esperando_nombre') {
+    usuario.nombre = msg.body.trim();
     usuario.estado = 'completado';
-    await msg.reply(`✅ ¡Gracias ${nombre}! Estás participando del sorteo con el número ${usuario.telefono}. ¡Mucha suerte! 🎉`);
+    await msg.reply(`✅ ¡Gracias ${usuario.nombre}! Estás participando del sorteo con el número ${usuario.telefono}. ¡Mucha suerte! 🎉`);
 
-    // Mostrar nuevamente el menú
+    // Mostramos nuevamente el menú
     await msg.reply(`👋 ¿Qué querés hacer ahora?
 1️⃣ Ver la carta  
 2️⃣ Consultar horarios  
@@ -71,7 +67,6 @@ client.on('message', async msg => {
 4️⃣ Conocer nuestra ubicación`);
     return;
   }
-
 
   // Paso 2: Responder opciones del menú
   switch (texto) {
@@ -94,19 +89,13 @@ client.on('message', async msg => {
       await msg.reply(`📍 Estamos ubicados en Paseo Colina Sur 14500, local 102 y 106. https://maps.app.goo.gl/rECKibRJ2Sz6RgfZA`);
       break;
 
-        case '86':
-      const [existing] = await db.query('SELECT * FROM wp_contactos_wsap WHERE telefono = ?', [telefono]);
-
-      if (existing.length > 0) {
-        await msg.reply(`✅ Ya estás inscrito con el número ${telefono}. ¡Gracias por participar!`);
-      } else {
-        inscripcionesSorteo.set(msg.from, { estado: 'esperando_nombre', telefono });
-        await msg.reply(`🎁 ¡Estás participando del sorteo!
+     case '86':
+      inscripcionesSorteo.set(msg.from, { estado: 'esperando_nombre', telefono });
+      await msg.reply(`🎁 ¡Estás participando del sorteo!
 
 Por favor respondé este mensaje con tu nombre completo para finalizar tu inscripción.
 
 ✅ Hemos registrado tu número: ${telefono}`);
-      }
       break;
 
     default:
