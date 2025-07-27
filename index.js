@@ -53,7 +53,7 @@ client.on('message', async msg => {
     await msg.reply(`✅ ¡Gracias ${usuario.nombre}! Estás participando del sorteo con el número ${usuario.telefono}. ¡Mucha suerte! 🎉`);
 
     // Mostramos nuevamente el menú
-    await msg.reply(`👋 ¿Qué querés hacer ahora?
+    await msg.reply(`👋 ¿Qué quieres hacer ahora?
 1️⃣ Ver la carta  
 2️⃣ Consultar horarios  
 3️⃣ Hacer una reserva  
@@ -92,7 +92,7 @@ Por favor respondé este mensaje con tu nombre completo para finalizar tu inscri
       break;
 
     default:
-      await msg.reply(`👋 ¡Hola! Soy Alma, bot de La Princesa y Ramona. Favor indícame qué querés hacer:
+      await msg.reply(`👋 ¡Hola! Soy Alma, bot de La Princesa y Ramona. Favor indícame qué quieres hacer:
 1️⃣ Ver la carta  
 2️⃣ Consultar horarios  
 3️⃣ Hacer una reserva  
