@@ -13,13 +13,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const inscripcionesSorteo = new Map(); // userId → { estado, teléfono }
 
-// Inicializar BBDD
-const db = await mysql.createConnection({
-  host: '45.239.111.49',
-  user: 'lucasobe_2023LP',
-  password: 'LaPrincesa*',
-  database: 'lucasobe_2023LP'
-});
 
 // Inicializar cliente de WhatsApp
 const client = new Client({
