@@ -52,6 +52,16 @@ client.on('message', async msg => {
     usuario.estado = 'completado';
     await msg.reply(`✅ ¡Gracias ${usuario.nombre}! Estás participando del sorteo con el número ${usuario.telefono}. ¡Mucha suerte! 🎉`);
 
+    // Enviar a Google Sheets
+fetch('TU_URL_DEL_WEBHOOK', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    nombre: usuario.nombre,
+    telefono: usuario.telefono
+  })
+});
+
     // Mostramos nuevamente el menú
     await msg.reply(`👋 ¿Qué quieres hacer ahora?
 1️⃣ Ver la carta  
