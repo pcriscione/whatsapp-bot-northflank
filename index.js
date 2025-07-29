@@ -53,7 +53,7 @@ client.on('message', async msg => {
     await msg.reply(`✅ ¡Gracias ${usuario.nombre}! Estás participando del sorteo con el número ${usuario.telefono}. ¡Mucha suerte! 🎉`);
 
 try {
-  const respuesta = await fetch('https://script.google.com/macros/s/AKfycbzO9HDR1zCSBdfBWomBF-LmUBm8amtRp6C1AmfTp5o4Q-40L-uXAaYwRnx0M46yW4F9dg/exec', {
+  const respuesta = await fetch('https://script.google.com/macros/s/AKfycbxkk6uC3K6mN6dbRWzviSLYViqN8ML3Vq0L_pQ5jm46eSfThviuaiOp7UGcEZx-mBLKPw/exec', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
