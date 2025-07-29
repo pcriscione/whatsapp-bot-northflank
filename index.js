@@ -52,15 +52,22 @@ client.on('message', async msg => {
     usuario.estado = 'completado';
     await msg.reply(`✅ ¡Gracias ${usuario.nombre}! Estás participando del sorteo con el número ${usuario.telefono}. ¡Mucha suerte! 🎉`);
 
-    // Enviar a Google Sheets
-fetch('https://script.google.com/macros/s/AKfycbzO9HDR1zCSBdfBWomBF-LmUBm8amtRp6C1AmfTp5o4Q-40L-uXAaYwRnx0M46yW4F9dg/exec', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    nombre: usuario.nombre,
-    telefono: usuario.telefono
-  })
-});
+try {
+  const respuesta = await fetch('https://script.google.com/macros/s/AKfycbzO9HDR1zCSBdfBWomBF-LmUBm8amtRp6C1AmfTp5o4Q-40L-uXAaYwRnx0M46yW4F9dg/exec', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      nombre: usuario.nombre,
+      telefono: usuario.telefono
+    })
+  });
+
+  const resultado = await respuesta.text();
+  console.log('✅ Respuesta de Google Sheets:', resultado);
+} catch (error) {
+  console.error('❌ Error al enviar datos a Google Sheets:', error);
+}
+
 
     // Mostramos nuevamente el menú
     await msg.reply(`👋 ¿Qué quieres hacer ahora?
