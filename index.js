@@ -12,7 +12,8 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const inscripcionesSorteo = new Map(); // userId → { estado, teléfono }
-
+// Anti-duplicados por contacto (cooldown corto)
+const __cooldown = new Map(); // chatId -> timestamp ms
 
 // Inicializar cliente de WhatsApp
 const client = new Client({
@@ -42,6 +43,21 @@ client.on('ready', () => {
 
 // Evento: mensaje entrante
 client.on('message', async msg => {
+// --- Filtros anti-bucle / anti-duplicados base ---
+if (msg.fromMe) return;                      // evita responder a tus propios mensajes
+if (msg.from === 'status@broadcast') return; // ignora Status
+if (msg.from.endsWith('@g.us')) return;      // ignora grupos (si tu bot es 1:1)
+
+// --- Ventana de cooldown por contacto (mitiga duplicados por reconexiones) ---
+try {
+  const now = Date.now();
+  const last = __cooldown.get(msg.from) || 0;
+  if (now - last < 1500) return; // 1.5s
+  __cooldown.set(msg.from, now);
+} catch (e) {
+// no-op: si algo falla, no bloquea la conversación
+}
+ 
   const texto = msg.body.trim().toLowerCase();
   const telefono = msg.from.split('@')[0];
   const usuario = inscripcionesSorteo.get(msg.from);
