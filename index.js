@@ -195,6 +195,3 @@ app.listen(port, () => {
   console.log(`🌐 Servidor web escuchando en http://localhost:${port}`);
 });
 
-app.listen(port, () => {
-  console.log(`🌐 Servidor web escuchando en http://localhost:${port}`);
-});
