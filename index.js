@@ -16,24 +16,56 @@ const inscripcionesSorteo = new Map(); // userId → { estado, teléfono }
 // Anti-duplicados por contacto (cooldown corto)
 const __cooldown = new Map(); // chatId -> timestamp ms
 
+// Cache en memoria del último QR (Data URL)
+let lastQRDataURL = null;
+
 // Inicializar cliente de WhatsApp
 const client = new Client({
   authStrategy: new LocalAuth({
-    dataPath: '/wwebjs_auth'
+    dataPath: '/wwebjs_auth' // ideal con volumen persistente
   }),
   puppeteer: {
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   }
 });
 
+// ---- Logs de estado útiles para depurar ----
+client.on('loading_screen', (percent, message) => {
+  console.log(`⏳ loading_screen ${percent}% - ${message}`);
+});
+client.on('authenticated', () => {
+  console.log('🔐 authenticated');
+});
+client.on('auth_failure', (m) => {
+  console.error('❌ auth_failure:', m);
+});
+client.on('disconnected', (r) => {
+  console.warn('⚠️ disconnected:', r);
+});
+client.on('change_state', (s) => {
+  console.log('🔁 change_state:', s);
+});
+
 // Evento: se genera el QR
 client.on('qr', async qr => {
+  console.log('🟩 Evento QR recibido (listo para escanear)');
+  // QR ASCII en consola (por si necesitas)
   qrcodeTerminal.generate(qr, { small: true });
+
   try {
-    await QRCode.toFile(path.join(__dirname, 'qr.png'), qr);
-    console.log('📷 QR guardado como qr.png');
+    // Guardamos el QR en memoria (evita depender del filesystem)
+    lastQRDataURL = await QRCode.toDataURL(qr);
+    console.log('📷 QR generado y cacheado en memoria');
+
+    // Si quieres seguir guardando a archivo, lo dejamos como best-effort:
+    try {
+      await QRCode.toFile(path.join(__dirname, 'qr.png'), qr);
+      console.log('💾 QR guardado como qr.png (opcional)');
+    } catch (err) {
+      console.warn('⚠️ No se pudo escribir qr.png (no es crítico):', err?.message || err);
+    }
   } catch (err) {
-    console.error('❌ Error guardando el QR:', err);
+    console.error('❌ Error generando QR:', err);
   }
 });
 
@@ -44,47 +76,45 @@ client.on('ready', () => {
 
 // Evento: mensaje entrante
 client.on('message', async msg => {
-// --- Filtros anti-bucle / anti-duplicados base ---
-if (msg.fromMe) return;                      // evita responder a tus propios mensajes
-if (msg.from === 'status@broadcast') return; // ignora Status
-if (msg.from.endsWith('@g.us')) return;      // ignora grupos (si tu bot es 1:1)
+  // --- Filtros anti-bucle / anti-duplicados base ---
+  if (msg.fromMe) return;                      // evita responder a tus propios mensajes
+  if (msg.from === 'status@broadcast') return; // ignora Status
+  if (msg.from.endsWith('@g.us')) return;      // ignora grupos (si tu bot es 1:1)
 
-// --- Ventana de cooldown por contacto (mitiga duplicados por reconexiones) ---
-try {
-  const now = Date.now();
-  const last = __cooldown.get(msg.from) || 0;
-  if (now - last < 1500) return; // 1.5s
-  __cooldown.set(msg.from, now);
-} catch (e) {
-// no-op: si algo falla, no bloquea la conversación
-}
- 
-  const texto = msg.body.trim().toLowerCase();
-  const telefono = msg.from.split('@')[0];
+  // --- Ventana de cooldown por contacto (mitiga duplicados por reconexiones) ---
+  try {
+    const now = Date.now();
+    const last = __cooldown.get(msg.from) || 0;
+    if (now - last < 1500) return; // 1.5s
+    __cooldown.set(msg.from, now);
+  } catch (e) {
+    // no-op
+  }
+
+  const texto = (msg.body || '').trim().toLowerCase();
+  const telefono = (msg.from || '').split('@')[0] || '';
   const usuario = inscripcionesSorteo.get(msg.from);
 
   // Paso 1: Si el usuario está en proceso de sorteo, guardar el nombre
   if (usuario?.estado === 'esperando_nombre') {
-    usuario.nombre = msg.body.trim();
+    usuario.nombre = (msg.body || '').trim();
     usuario.estado = 'completado';
     await msg.reply(`✅ ¡Gracias ${usuario.nombre}! Estás participando del sorteo con el número ${usuario.telefono}. ¡Mucha suerte! 🎉`);
 
-try {
-  const respuesta = await fetch('https://script.google.com/macros/s/AKfycbxkk6uC3K6mN6dbRWzviSLYViqN8ML3Vq0L_pQ5jm46eSfThviuaiOp7UGcEZx-mBLKPw/exec', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      nombre: usuario.nombre,
-      telefono: usuario.telefono
-    })
-  });
-
-  const resultado = await respuesta.text();
-  console.log('✅ Respuesta de Google Sheets:', resultado);
-} catch (error) {
-  console.error('❌ Error al enviar datos a Google Sheets:', error);
-}
-
+    try {
+      const respuesta = await fetch('https://script.google.com/macros/s/AKfycbxkk6uC3K6mN6dbRWzviSLYViqN8ML3Vq0L_pQ5jm46eSfThviuaiOp7UGcEZx-mBLKPw/exec', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nombre: usuario.nombre,
+          telefono: usuario.telefono
+        })
+      });
+      const resultado = await respuesta.text();
+      console.log('✅ Respuesta de Google Sheets:', resultado);
+    } catch (error) {
+      console.error('❌ Error al enviar datos a Google Sheets:', error);
+    }
 
     // Mostramos nuevamente el menú
     await msg.reply(`👋 ¿Qué quieres hacer ahora?
@@ -116,7 +146,7 @@ try {
       await msg.reply(`📍 Estamos ubicados en Paseo Colina Sur 14500, local 102 y 106. https://maps.app.goo.gl/rECKibRJ2Sz6RgfZA`);
       break;
 
-     case '86':
+    case '86':
       inscripcionesSorteo.set(msg.from, { estado: 'esperando_nombre', telefono });
       await msg.reply(`🎁 ¡Estás participando del sorteo!
 
@@ -130,15 +160,13 @@ Por favor respondé este mensaje con tu nombre completo para finalizar tu inscri
 1️⃣ Ver la carta  
 2️⃣ Consultar horarios  
 3️⃣ Hacer una reserva  
-4️⃣ Conocer nuestra ubicación`); 
+4️⃣ Conocer nuestra ubicación`);
   }
 });
 
-
 client.initialize();
 
-
-// Servidor Express para el QR y status
+// --------------------- Servidor Express ---------------------
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -146,13 +174,25 @@ app.get('/', (_, res) => {
   res.send('🟢 Bot de WhatsApp activo en Northflank');
 });
 
-app.get('/qr', (req, res) => {
-  const qrPath = path.join(__dirname, 'qr.png');
-  if (fs.existsSync(qrPath)) {
-    res.sendFile(qrPath);
-  } else {
-    res.send('⚠️ QR aún no generado. Esperá unos segundos...');
+// Sirve el QR directamente desde memoria (sin depender de qr.png)
+app.get('/qr', (_, res) => {
+  if (!lastQRDataURL) {
+    return res
+      .status(503)
+      .send('⚠️ QR aún no generado. Recarga cada 2–3 segundos hasta que aparezca.');
   }
+  const img = Buffer.from(lastQRDataURL.split(',')[1], 'base64');
+  res.set('Content-Type', 'image/png');
+  res.send(img);
+});
+
+// (Opcional) endpoint simple de salud
+app.get('/health', (_, res) => {
+  res.json({ ok: true, ready: !!lastQRDataURL });
+});
+
+app.listen(port, () => {
+  console.log(`🌐 Servidor web escuchando en http://localhost:${port}`);
 });
 
 app.listen(port, () => {
