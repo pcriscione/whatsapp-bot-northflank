@@ -1,6 +1,7 @@
 import pkg from 'whatsapp-web.js';
 const { Client, LocalAuth } = pkg;
 //import mysql from 'mysql2/promise';
+//pcriscione
 
 import qrcodeTerminal from 'qrcode-terminal';
 import QRCode from 'qrcode';
