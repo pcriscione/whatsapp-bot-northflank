@@ -51,6 +51,24 @@ client.on('change_state', (s) => {
   console.log('🔁 change_state:', s);
 });
 
+client.on('authenticated', async () => {
+  const s = await client.getState().catch(()=> 'NO_STATE');
+  console.log('🔐 authenticated, state =', s);
+});
+
+client.on('ready', async () => {
+  const s = await client.getState().catch(()=> 'NO_STATE');
+  console.log('✅ Bot is ready! state =', s);
+});
+
+client.on('change_state', (s) => console.log('🔁 change_state:', s));
+
+// pulso de vida cada 10s
+setInterval(async () => {
+  const s = await client.getState().catch(()=> 'NO_STATE');
+  console.log('🩺 heartbeat state:', s);
+}, 10000);
+
 // Evento: se genera el QR
 client.on('qr', async qr => {
   console.log('🟩 Evento QR recibido (listo para escanear)');
