@@ -23,22 +23,43 @@ import puppeteer from 'puppeteer'; // <= agrega este import arriba
 
 const client = new Client({
   authStrategy: new LocalAuth({ dataPath: '/wwebjs_auth' }),
+
+  // (opcional) Fija temporalmente una versión estable conocida
+  // webVersion: '2.2412.54',
+
   webVersionCache: {
     type: 'remote',
     remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/wa-version.json'
   },
+
   puppeteer: {
     headless: true,
-    executablePath: puppeteer.executablePath(), // <= fuerza la ruta correcta de Chromium
+    // viewport pequeño reduce memoria del renderer
+    defaultViewport: { width: 800, height: 600, deviceScaleFactor: 1 },
+    // usa el Chromium que trae puppeteer
+    // (puedes dejar tu executablePath actual si ya te funciona el download)
+    // executablePath: puppeteer.executablePath(),
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--no-zygote',
-      '--window-size=1920,1080',
+      '--single-process',                      // reduce procesos (ahorra RAM)*
+      '--disable-gpu',
+      '--disable-features=TranslateUI,BlinkGenPropertyTrees',
+      '--disable-extensions',
+      '--disable-background-networking',
+      '--disable-default-apps',
+      '--disable-sync',
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--mute-audio',
+      '--blink-settings=imagesEnabled=false',  // no renderiza imágenes (ahorra)
+      '--window-size=800,600'
     ]
   }
 });
+
 
 // logs/diagnóstico
 client.on('qr', () => console.log('🟩 QR solicitado (cliente pidió autenticación)'));
