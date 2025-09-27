@@ -14,6 +14,7 @@ const __dirname = path.dirname(__filename);
 const inscripcionesSorteo = new Map();
 const __cooldown = new Map();
 let lastQRDataURL = null;
+let initInProgress = false;
 
 const client = new Client({
   authStrategy: new LocalAuth({ dataPath: '/wwebjs_auth' }),
@@ -148,27 +149,22 @@ Por favor respondé este mensaje con tu nombre completo para finalizar tu inscri
 });
 
 // init con guardia
-let initInProgress = false;
 async function ensureInit() {
-  if (initInProgress) return;
+  if (initInProgress) {
+    console.log('⏳ init en curso, omito reintento');
+    return;
+  }
   initInProgress = true;
   try {
-    await client.initialize();
+    await client.initialize();        // <- nunca se llamará en paralelo
   } catch (e) {
     console.error('❌ Error en initialize():', e);
+    try { await client?.destroy(); } catch {}
   } finally {
     initInProgress = false;
   }
-
-  setTimeout(async () => {
-    const s = await client.getState().catch(() => 'NO_STATE');
-    if (s === 'NO_STATE' || s == null) {
-      console.warn('⏱️ Sin estado tras 60s, reinicializando…');
-      try { await client.destroy().catch(() => {}); } catch {}
-      ensureInit();
-    }
-  }, 60000);
 }
+
 ensureInit();
 
 // --------------------- Servidor Express ---------------------
