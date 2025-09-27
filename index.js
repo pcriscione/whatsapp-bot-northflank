@@ -19,21 +19,22 @@ const client = new Client({
   authStrategy: new LocalAuth({ dataPath: '/wwebjs_auth' }),
   webVersionCache: {
     type: 'remote',
-    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/wa-version.json',
+    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/wa-version.json'
   },
   puppeteer: {
     headless: true,
-    executablePath: puppeteer.executablePath(),
     defaultViewport: { width: 800, height: 600, deviceScaleFactor: 1 },
     args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--no-zygote',
-      '--window-size=800,600',
-    ],
-  },
+      '--no-sandbox','--disable-setuid-sandbox','--disable-dev-shm-usage',
+      '--no-zygote','--disable-gpu','--disable-software-rasterizer',
+      '--disable-extensions','--disable-background-networking',
+      '--disable-default-apps','--no-first-run','--no-default-browser-check',
+      '--mute-audio','--window-size=800,600',
+      '--blink-settings=imagesEnabled=false'
+    ]
+  }
 });
+
 
 // ---------- listeners (una sola vez) ----------
 client.on('qr', () => console.log('🟩 QR solicitado (cliente pidió autenticación)'));
