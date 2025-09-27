@@ -196,6 +196,16 @@ app.get('/health', (_, res) => {
   res.json({ ok: true, ready: !!lastQRDataURL });
 });
 
+// Estado en vivo del cliente de WhatsApp
+app.get('/state', async (_, res) => {
+  try {
+    const state = await client.getState().catch(() => 'NO_STATE');
+    res.json({ state });
+  } catch (e) {
+    res.status(500).json({ state: 'ERROR', error: String(e) });
+  }
+});
+
 app.listen(port, () => {
   console.log(`🌐 Servidor web escuchando en http://localhost:${port}`);
 });
