@@ -1,6 +1,6 @@
 # Imagen estable con Debian bullseye
 FROM node:20-bullseye
-ARG BUILD_REV=3
+ARG BUILD_REV=5
 
 # ---- Dependencias del sistema para Chromium (Puppeteer) ----
 RUN apt-get update && apt-get install -y \
