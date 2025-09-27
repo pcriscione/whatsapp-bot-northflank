@@ -32,6 +32,7 @@ const client = new Client({
   }
 });
 
+
 // ---- Logs de estado útiles para depurar ----
 client.on('loading_screen', (percent, message) => {
   console.log(`⏳ loading_screen ${percent}% - ${message}`);
