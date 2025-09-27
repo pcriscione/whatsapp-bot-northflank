@@ -224,6 +224,18 @@ app.get('/state', async (_, res) => {
   }
 });
 
+app.post('/restart', async (_, res) => {
+  try {
+    console.log('♻️ Reiniciando cliente…');
+    await client.destroy().catch(()=>{});
+    await client.initialize();
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e) });
+  }
+});
+
+
 app.listen(port, () => {
   console.log(`🌐 Servidor web escuchando en http://localhost:${port}`);
 });
