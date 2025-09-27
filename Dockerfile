@@ -16,7 +16,7 @@ WORKDIR /app
 
 # Copiamos manifest y usamos EXACTAMENTE el lockfile
 COPY package*.json ./
-RUN npm ci
+RUN npm install --omit=dev
 
 # Copiamos el resto del proyecto
 COPY . .
