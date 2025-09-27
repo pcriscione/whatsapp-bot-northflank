@@ -19,7 +19,8 @@ const __cooldown = new Map(); // chatId -> timestamp ms
 // Cache en memoria del último QR (Data URL)
 let lastQRDataURL = null;
 
-// Inicializar cliente de WhatsApp
+import puppeteer from 'puppeteer'; // <= agrega este import arriba
+
 const client = new Client({
   authStrategy: new LocalAuth({ dataPath: '/wwebjs_auth' }),
   webVersionCache: {
@@ -28,10 +29,56 @@ const client = new Client({
   },
   puppeteer: {
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+    executablePath: puppeteer.executablePath(), // <= fuerza la ruta correcta de Chromium
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--no-zygote',
+      '--window-size=1920,1080',
+    ]
   }
 });
-console.log('⚙️ webVersionCache = remote (wppconnect)');
+
+// logs/diagnóstico
+client.on('qr', () => console.log('🟩 QR solicitado (cliente pidió autenticación)'));
+client.on('authenticated', async () => {
+  const s = await client.getState().catch(()=> 'NO_STATE');
+  console.log('🔐 authenticated, state =', s);
+});
+client.on('ready', async () => {
+  const s = await client.getState().catch(()=> 'NO_STATE');
+  console.log('✅ Bot is ready! state =', s);
+});
+client.on('auth_failure', (m) => console.error('❌ auth_failure:', m));
+client.on('disconnected', (r) => console.warn('⚠️ disconnected:', r));
+client.on('change_state', (s) => console.log('🔁 change_state:', s));
+
+// pulso y auto-reinit si no levanta
+setInterval(async () => {
+  const s = await client.getState().catch(()=> 'NO_STATE');
+  console.log('🩺 heartbeat state:', s);
+}, 10000);
+
+async function ensureInit() {
+  try {
+    await client.initialize();
+  } catch (e) {
+    console.error('❌ Error en initialize():', e);
+  }
+  // si a los 60s no hay estado, reintenta
+  setTimeout(async () => {
+    const s = await client.getState().catch(()=> 'NO_STATE');
+    if (s === 'NO_STATE' || s == null) {
+      console.warn('⏱️ Sin estado tras 60s, reinicializando…');
+      try { await client.destroy().catch(()=>{}); } catch {}
+      await ensureInit();
+    }
+  }, 60000);
+}
+
+ensureInit();
+
 
 
 // ---- Logs de estado útiles para depurar ----
@@ -235,6 +282,16 @@ app.post('/restart', async (_, res) => {
   }
 });
 
+app.post('/restart', async (_, res) => {
+  try {
+    console.log('♻️ Reiniciando cliente…');
+    await client.destroy().catch(()=>{});
+    await ensureInit();
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e) });
+  }
+});
 
 app.listen(port, () => {
   console.log(`🌐 Servidor web escuchando en http://localhost:${port}`);
