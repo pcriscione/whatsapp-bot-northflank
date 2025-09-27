@@ -1,9 +1,13 @@
 # Imagen estable con Debian bullseye
 FROM node:20-bullseye
-ARG BUILD_REV=5
+ARG BUILD_REV=6
+
+ENV NODE_ENV=production \
+    NPM_CONFIG_FUND=false \
+    NPM_CONFIG_AUDIT=false
 
 # ---- Dependencias del sistema para Chromium (Puppeteer) ----
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
   ca-certificates fonts-liberation libfontconfig1 \
   libasound2 libatk1.0-0 libatk-bridge2.0-0 \
   libc6 libcairo2 libcups2 libdbus-1-3 libdrm2 \
@@ -17,12 +21,21 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Copiamos manifest y usamos EXACTAMENTE el lockfile
+# Copiamos manifests primero para aprovechar la cache de capas
 COPY package*.json ./
-RUN npm install --omit=dev
+
+# Usamos npm install (no CI) para permitir ^ (auto-fixes) y evitar errores de lock desincronizado
+RUN npm install --omit=dev --no-audit --no-fund
 
 # Copiamos el resto del proyecto
 COPY . .
 
-# Arranque único (evita dobles starts)
+# (Opcional) expone el puerto para inspección local
+EXPOSE 3000
+
+# (Opcional) healthcheck simple del servicio HTTP
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=5 \
+  CMD node -e "fetch('http://localhost:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+
+# Arranque
 CMD ["node","index.js"]
