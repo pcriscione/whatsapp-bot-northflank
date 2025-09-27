@@ -1,154 +1,66 @@
 import pkg from 'whatsapp-web.js';
 const { Client, LocalAuth } = pkg;
-//import mysql from 'mysql2/promise';
-//pcriscione
 
 import qrcodeTerminal from 'qrcode-terminal';
 import QRCode from 'qrcode';
 import express from 'express';
-import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import puppeteer from 'puppeteer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const inscripcionesSorteo = new Map(); // userId → { estado, teléfono }
-// Anti-duplicados por contacto (cooldown corto)
-const __cooldown = new Map(); // chatId -> timestamp ms
 
-// Cache en memoria del último QR (Data URL)
+const inscripcionesSorteo = new Map();
+const __cooldown = new Map();
 let lastQRDataURL = null;
-
-import puppeteer from 'puppeteer'; // <= agrega este import arriba
 
 const client = new Client({
   authStrategy: new LocalAuth({ dataPath: '/wwebjs_auth' }),
-
-  // (opcional) Fija temporalmente una versión estable conocida
-  // webVersion: '2.2412.54',
-
   webVersionCache: {
     type: 'remote',
-    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/wa-version.json'
+    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/wa-version.json',
   },
-
   puppeteer: {
     headless: true,
-    // viewport pequeño reduce memoria del renderer
+    executablePath: puppeteer.executablePath(),
     defaultViewport: { width: 800, height: 600, deviceScaleFactor: 1 },
-    // usa el Chromium que trae puppeteer
-    // (puedes dejar tu executablePath actual si ya te funciona el download)
-    // executablePath: puppeteer.executablePath(),
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--no-zygote',
-      '--single-process',                      // reduce procesos (ahorra RAM)*
-      '--disable-gpu',
-      '--disable-features=TranslateUI,BlinkGenPropertyTrees',
-      '--disable-extensions',
-      '--disable-background-networking',
-      '--disable-default-apps',
-      '--disable-sync',
-      '--no-first-run',
-      '--no-default-browser-check',
-      '--mute-audio',
-      '--blink-settings=imagesEnabled=false',  // no renderiza imágenes (ahorra)
-      '--window-size=800,600'
-    ]
-  }
+      '--window-size=800,600',
+    ],
+  },
 });
 
-
-// logs/diagnóstico
+// ---------- listeners (una sola vez) ----------
 client.on('qr', () => console.log('🟩 QR solicitado (cliente pidió autenticación)'));
 client.on('authenticated', async () => {
-  const s = await client.getState().catch(()=> 'NO_STATE');
+  const s = await client.getState().catch(() => 'NO_STATE');
   console.log('🔐 authenticated, state =', s);
 });
 client.on('ready', async () => {
-  const s = await client.getState().catch(()=> 'NO_STATE');
+  const s = await client.getState().catch(() => 'NO_STATE');
   console.log('✅ Bot is ready! state =', s);
 });
 client.on('auth_failure', (m) => console.error('❌ auth_failure:', m));
 client.on('disconnected', (r) => console.warn('⚠️ disconnected:', r));
 client.on('change_state', (s) => console.log('🔁 change_state:', s));
 
-// pulso y auto-reinit si no levanta
+// heartbeat único
 setInterval(async () => {
-  const s = await client.getState().catch(()=> 'NO_STATE');
+  const s = await client.getState().catch(() => 'NO_STATE');
   console.log('🩺 heartbeat state:', s);
 }, 10000);
 
-async function ensureInit() {
-  try {
-    await client.initialize();
-  } catch (e) {
-    console.error('❌ Error en initialize():', e);
-  }
-  // si a los 60s no hay estado, reintenta
-  setTimeout(async () => {
-    const s = await client.getState().catch(()=> 'NO_STATE');
-    if (s === 'NO_STATE' || s == null) {
-      console.warn('⏱️ Sin estado tras 60s, reinicializando…');
-      try { await client.destroy().catch(()=>{}); } catch {}
-      await ensureInit();
-    }
-  }, 60000);
-}
-
-ensureInit();
-
-
-
-// ---- Logs de estado útiles para depurar ----
-client.on('loading_screen', (percent, message) => {
-  console.log(`⏳ loading_screen ${percent}% - ${message}`);
-});
-client.on('authenticated', () => {
-  console.log('🔐 authenticated');
-});
-client.on('auth_failure', (m) => {
-  console.error('❌ auth_failure:', m);
-});
-client.on('disconnected', (r) => {
-  console.warn('⚠️ disconnected:', r);
-});
-client.on('change_state', (s) => {
-  console.log('🔁 change_state:', s);
-});
-
-client.on('authenticated', async () => {
-  const s = await client.getState().catch(()=> 'NO_STATE');
-  console.log('🔐 authenticated, state =', s);
-});
-
-client.on('ready', async () => {
-  const s = await client.getState().catch(()=> 'NO_STATE');
-  console.log('✅ Bot is ready! state =', s);
-});
-
-client.on('change_state', (s) => console.log('🔁 change_state:', s));
-
-// pulso de vida cada 10s
-setInterval(async () => {
-  const s = await client.getState().catch(()=> 'NO_STATE');
-  console.log('🩺 heartbeat state:', s);
-}, 10000);
-
-// Evento: se genera el QR
-client.on('qr', async qr => {
-  console.log('🟩 Evento QR recibido (listo para escanear)');
-  // QR ASCII en consola (por si necesitas)
+// QR a memoria + opcional archivo
+client.on('qr', async (qr) => {
   qrcodeTerminal.generate(qr, { small: true });
-
   try {
-    // Guardamos el QR en memoria (evita depender del filesystem)
     lastQRDataURL = await QRCode.toDataURL(qr);
     console.log('📷 QR generado y cacheado en memoria');
-
-    // Si quieres seguir guardando a archivo, lo dejamos como best-effort:
     try {
       await QRCode.toFile(path.join(__dirname, 'qr.png'), qr);
       console.log('💾 QR guardado como qr.png (opcional)');
@@ -160,33 +72,23 @@ client.on('qr', async qr => {
   }
 });
 
-// Evento: bot listo
-client.on('ready', () => {
-  console.log('✅ Bot is ready!');
-});
+// mensajes
+client.on('message', async (msg) => {
+  if (msg.fromMe) return;
+  if (msg.from === 'status@broadcast') return;
+  if (msg.from.endsWith('@g.us')) return;
 
-// Evento: mensaje entrante
-client.on('message', async msg => {
-  // --- Filtros anti-bucle / anti-duplicados base ---
-  if (msg.fromMe) return;                      // evita responder a tus propios mensajes
-  if (msg.from === 'status@broadcast') return; // ignora Status
-  if (msg.from.endsWith('@g.us')) return;      // ignora grupos (si tu bot es 1:1)
-
-  // --- Ventana de cooldown por contacto (mitiga duplicados por reconexiones) ---
   try {
     const now = Date.now();
     const last = __cooldown.get(msg.from) || 0;
-    if (now - last < 1500) return; // 1.5s
+    if (now - last < 1500) return;
     __cooldown.set(msg.from, now);
-  } catch (e) {
-    // no-op
-  }
+  } catch {}
 
   const texto = (msg.body || '').trim().toLowerCase();
   const telefono = (msg.from || '').split('@')[0] || '';
   const usuario = inscripcionesSorteo.get(msg.from);
 
-  // Paso 1: Si el usuario está en proceso de sorteo, guardar el nombre
   if (usuario?.estado === 'esperando_nombre') {
     usuario.nombre = (msg.body || '').trim();
     usuario.estado = 'completado';
@@ -196,18 +98,13 @@ client.on('message', async msg => {
       const respuesta = await fetch('https://script.google.com/macros/s/AKfycbxkk6uC3K6mN6dbRWzviSLYViqN8ML3Vq0L_pQ5jm46eSfThviuaiOp7UGcEZx-mBLKPw/exec', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nombre: usuario.nombre,
-          telefono: usuario.telefono
-        })
+        body: JSON.stringify({ nombre: usuario.nombre, telefono: usuario.telefono }),
       });
-      const resultado = await respuesta.text();
-      console.log('✅ Respuesta de Google Sheets:', resultado);
+      console.log('✅ Respuesta de Google Sheets:', await respuesta.text());
     } catch (error) {
       console.error('❌ Error al enviar datos a Google Sheets:', error);
     }
 
-    // Mostramos nuevamente el menú
     await msg.reply(`👋 ¿Qué quieres hacer ahora?
 1️⃣ Ver la carta  
 2️⃣ Consultar horarios  
@@ -216,27 +113,22 @@ client.on('message', async msg => {
     return;
   }
 
-  // Paso 2: Responder opciones del menú
   switch (texto) {
     case '1':
       await msg.reply(`🍽️ Ambas cartas: https://www.laprincesa.cl/carta`);
       break;
-
     case '2':
       await msg.reply(`⏰ Horarios:
 - Lunes a viernes: 08:30 a 23:00
 - Sábados: 09:00 a 23:00        
 - Domingos: 09:00 a 20:00`);
       break;
-
     case '3':
       await msg.reply(`📅 Para hacer una reserva: https://tinyurl.com/uaxzmbr6`);
       break;
-
     case '4':
       await msg.reply(`📍 Estamos ubicados en Paseo Colina Sur 14500, local 102 y 106. https://maps.app.goo.gl/rECKibRJ2Sz6RgfZA`);
       break;
-
     case '86':
       inscripcionesSorteo.set(msg.from, { estado: 'esperando_nombre', telefono });
       await msg.reply(`🎁 ¡Estás participando del sorteo!
@@ -245,7 +137,6 @@ Por favor respondé este mensaje con tu nombre completo para finalizar tu inscri
 
 ✅ Hemos registrado tu número: ${telefono}`);
       break;
-
     default:
       await msg.reply(`👋 ¡Hola! Soy Alma, bot de La Princesa y Ramona. Favor indícame qué quieres hacer:
 1️⃣ Ver la carta  
@@ -255,34 +146,45 @@ Por favor respondé este mensaje con tu nombre completo para finalizar tu inscri
   }
 });
 
-client.initialize();
+// init con guardia
+let initInProgress = false;
+async function ensureInit() {
+  if (initInProgress) return;
+  initInProgress = true;
+  try {
+    await client.initialize();
+  } catch (e) {
+    console.error('❌ Error en initialize():', e);
+  } finally {
+    initInProgress = false;
+  }
+
+  setTimeout(async () => {
+    const s = await client.getState().catch(() => 'NO_STATE');
+    if (s === 'NO_STATE' || s == null) {
+      console.warn('⏱️ Sin estado tras 60s, reinicializando…');
+      try { await client.destroy().catch(() => {}); } catch {}
+      ensureInit();
+    }
+  }, 60000);
+}
+ensureInit();
 
 // --------------------- Servidor Express ---------------------
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.get('/', (_, res) => {
-  res.send('🟢 Bot de WhatsApp activo en Northflank');
-});
+app.get('/', (_, res) => res.send('🟢 Bot de WhatsApp activo en Northflank'));
 
-// Sirve el QR directamente desde memoria (sin depender de qr.png)
 app.get('/qr', (_, res) => {
-  if (!lastQRDataURL) {
-    return res
-      .status(503)
-      .send('⚠️ QR aún no generado. Recarga cada 2–3 segundos hasta que aparezca.');
-  }
+  if (!lastQRDataURL) return res.status(503).send('⚠️ QR aún no generado. Recarga cada 2–3 segundos hasta que aparezca.');
   const img = Buffer.from(lastQRDataURL.split(',')[1], 'base64');
   res.set('Content-Type', 'image/png');
   res.send(img);
 });
 
-// (Opcional) endpoint simple de salud
-app.get('/health', (_, res) => {
-  res.json({ ok: true, ready: !!lastQRDataURL });
-});
+app.get('/health', (_, res) => res.json({ ok: true, ready: !!lastQRDataURL }));
 
-// Estado en vivo del cliente de WhatsApp
 app.get('/state', async (_, res) => {
   try {
     const state = await client.getState().catch(() => 'NO_STATE');
@@ -295,18 +197,7 @@ app.get('/state', async (_, res) => {
 app.post('/restart', async (_, res) => {
   try {
     console.log('♻️ Reiniciando cliente…');
-    await client.destroy().catch(()=>{});
-    await client.initialize();
-    res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: String(e) });
-  }
-});
-
-app.post('/restart', async (_, res) => {
-  try {
-    console.log('♻️ Reiniciando cliente…');
-    await client.destroy().catch(()=>{});
+    await client.destroy().catch(() => {});
     await ensureInit();
     res.json({ ok: true });
   } catch (e) {
@@ -314,7 +205,4 @@ app.post('/restart', async (_, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`🌐 Servidor web escuchando en http://localhost:${port}`);
-});
-
+app.listen(port, () => console.log(`🌐 Servidor web escuchando en http://localhost:${port}`));
