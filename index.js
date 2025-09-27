@@ -31,6 +31,7 @@ const client = new Client({
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
   }
 });
+console.log('⚙️ webVersionCache = remote (wppconnect)');
 
 
 // ---- Logs de estado útiles para depurar ----
