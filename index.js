@@ -21,11 +21,14 @@ let lastQRDataURL = null;
 
 // Inicializar cliente de WhatsApp
 const client = new Client({
-  authStrategy: new LocalAuth({
-    dataPath: '/wwebjs_auth' // ideal con volumen persistente
-  }),
+  authStrategy: new LocalAuth({ dataPath: '/wwebjs_auth' }),
+  webVersionCache: {
+    type: 'remote',
+    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/wa-version.json'
+  },
   puppeteer: {
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
   }
 });
 
