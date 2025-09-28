@@ -1,10 +1,12 @@
-// --- WhatsApp Bot (Northflank-friendly) ---------------------
-// - Una sola inicialización (anti reentrada)
-// - Reinicio limpio con /restart
-// - QR cacheado en memoria (+ opcional a archivo)
-// - Puppeteer "ligero" para 512 MB
-// ------------------------------------------------------------
+// --- WhatsApp Bot (Northflank-friendly) ----------------------------------
+// • Instancia única por lockfile (evita dos pods usando la misma sesión)
+// • Una sola inicialización (anti reentrada)
+// • No publica/renueva QR cuando ya está CONNECTED
+// • Reinicio limpio con /restart
+// • Puppeteer "ligero" para 512 MB
+// -------------------------------------------------------------------------
 
+import fs from 'fs';
 import pkg from 'whatsapp-web.js';
 const { Client, LocalAuth } = pkg;
 
@@ -18,20 +20,49 @@ import puppeteer from 'puppeteer';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// ---- util de logs con PID (para detectar procesos concurrentes)
+const PID = process.pid;
+const log = (...args) => console.log(`[pid ${PID}]`, ...args);
+
+// ---- Lock de sesión para instancia única (mismo volumen /wwebjs_auth)
+const SESSION_DIR = '/wwebjs_auth';
+const LOCK_PATH = `${SESSION_DIR}/.session.lock`;
+function acquireLock() {
+  try {
+    fs.mkdirSync(SESSION_DIR, { recursive: true });
+    if (fs.existsSync(LOCK_PATH)) {
+      // Si el lock es "reciente", asumimos que hay otra instancia viva
+      const { mtimeMs } = fs.statSync(LOCK_PATH);
+      if (Date.now() - mtimeMs < 120000) {
+        log('🔒 Otra instancia ya usa la sesión. Saliendo.');
+        process.exit(0);
+      }
+    }
+    fs.writeFileSync(LOCK_PATH, String(PID));
+    const cleanup = () => { try { fs.unlinkSync(LOCK_PATH); } catch {} };
+    process.on('exit', cleanup);
+    process.on('SIGINT', () => { cleanup(); process.exit(0); });
+    process.on('SIGTERM', () => { cleanup(); process.exit(0); });
+    log('🔑 Lock de sesión adquirido.');
+  } catch (e) {
+    log('⚠️ No se pudo manejar el lock:', e?.message || e);
+  }
+}
+acquireLock();
+
 // ---- Estado app/bot
 const inscripcionesSorteo = new Map();
 const __cooldown = new Map();
-let lastQRDataURL = null;
-
-let client = null;          // se recrea cuando haga falta
-let initInProgress = false; // guardia anti reentrada
-let isReady = false;        // para señales de salud
+let lastQRDataURL = null;           // QR mostrado por /qr
+let client = null;                   // se recrea cuando haga falta
+let initInProgress = false;          // guardia anti reentrada
+let isReady = false;                 // para señales de salud
 
 // ---- Fábrica de cliente (crea y conecta listeners una sola vez por instancia)
 function buildClient() {
   const c = new Client({
-    authStrategy: new LocalAuth({ dataPath: '/wwebjs_auth' }),
-    // (opcional) pin temporal de versión si WA Web cambia y rompe wwebjs:
+    authStrategy: new LocalAuth({ dataPath: SESSION_DIR }),
+    // (opcional) pin temporal si WA Web cambia y rompe wwebjs
     // webVersion: '2.2412.54',
     webVersionCache: {
       type: 'remote',
@@ -39,14 +70,14 @@ function buildClient() {
     },
     puppeteer: {
       headless: true,
-      executablePath: puppeteer.executablePath(), // usa Chromium de puppeteer
+      executablePath: puppeteer.executablePath(), // Chromium de puppeteer
       defaultViewport: { width: 800, height: 600, deviceScaleFactor: 1 },
       args: [
-        '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
-        '--no-zygote', '--disable-gpu', '--disable-software-rasterizer',
-        '--disable-extensions', '--disable-background-networking',
-        '--disable-default-apps', '--no-first-run', '--no-default-browser-check',
-        '--mute-audio', '--window-size=800,600',
+        '--no-sandbox','--disable-setuid-sandbox','--disable-dev-shm-usage',
+        '--no-zygote','--disable-gpu','--disable-software-rasterizer',
+        '--disable-extensions','--disable-background-networking',
+        '--disable-default-apps','--no-first-run','--no-default-browser-check',
+        '--mute-audio','--window-size=800,600',
         '--blink-settings=imagesEnabled=false'
       ]
     }
@@ -54,49 +85,51 @@ function buildClient() {
 
   // ---- Listeners (UNA VEZ por instancia)
   c.on('qr', async (qr) => {
-    console.log('🟩 QR solicitado (cliente pidió autenticación)');
-    // QR en terminal (ASCII)
+    if (isReady) { // evita publicar QR después de conectar
+      log('🔇 QR ignorado (ya conectado)');
+      return;
+    }
+    log('🟩 QR solicitado (cliente pidió autenticación)');
     try { qrcodeTerminal.generate(qr, { small: true }); } catch {}
-    // QR a memoria (para /qr)
     try {
       lastQRDataURL = await QRCode.toDataURL(qr);
-      console.log('📷 QR generado y cacheado en memoria');
-      // opcional: guardar a archivo (no crítico si falla)
+      log('📷 QR generado y cacheado en memoria');
       try {
         await QRCode.toFile(path.join(__dirname, 'qr.png'), qr);
-        console.log('💾 QR guardado como qr.png (opcional)');
+        log('💾 QR guardado como qr.png (opcional)');
       } catch (err) {
-        console.warn('⚠️ No se pudo escribir qr.png:', err?.message || err);
+        log('⚠️ No se pudo escribir qr.png:', err?.message || err);
       }
     } catch (err) {
-      console.error('❌ Error generando QR:', err);
+      log('❌ Error generando QR:', err);
     }
   });
 
   c.on('authenticated', async () => {
     const s = await c.getState().catch(() => 'NO_STATE');
-    console.log('🔐 authenticated, state =', s);
+    log('🔐 authenticated, state =', s);
   });
 
   c.on('ready', async () => {
     isReady = true;
+    lastQRDataURL = null; // oculta el QR en /qr tras conectar
     const s = await c.getState().catch(() => 'NO_STATE');
-    console.log('✅ Bot is ready! state =', s);
+    log('✅ Bot is ready! state =', s);
   });
 
   c.on('change_state', (s) => {
     isReady = (s === 'CONNECTED');
-    console.log('🔁 change_state:', s);
+    log('🔁 change_state:', s);
   });
 
-  c.on('auth_failure', (m) => console.error('❌ auth_failure:', m));
+  c.on('auth_failure', (m) => log('❌ auth_failure:', m));
 
   c.on('disconnected', async (reason) => {
-    console.warn('⚠️ disconnected:', reason);
+    log('⚠️ disconnected:', reason);
     isReady = false;
     try { await c.destroy(); } catch {}
-    client = null;              // FORZAMOS nueva instancia
-    // Reintento suave tras 2 s (respeta guardia en ensureInit)
+    client = null; // forzamos nueva instancia
+    // reintento suave tras 2 s (respeta guardia)
     setTimeout(() => ensureInit().catch(() => {}), 2000);
   });
 
@@ -122,16 +155,15 @@ function buildClient() {
       usuario.estado = 'completado';
       await msg.reply(`✅ ¡Gracias ${usuario.nombre}! Estás participando del sorteo con el número ${usuario.telefono}. ¡Mucha suerte! 🎉`);
 
-      // Envío a Google Sheets (Apps Script)
       try {
         const respuesta = await fetch('https://script.google.com/macros/s/AKfycbxkk6uC3K6mN6dbRWzviSLYViqN8ML3Vq0L_pQ5jm46eSfThviuaiOp7UGcEZx-mBLKPw/exec', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ nombre: usuario.nombre, telefono: usuario.telefono })
         });
-        console.log('✅ Respuesta de Google Sheets:', await respuesta.text());
+        log('✅ Respuesta de Google Sheets:', await respuesta.text());
       } catch (error) {
-        console.error('❌ Error al enviar datos a Google Sheets:', error);
+        log('❌ Error al enviar datos a Google Sheets:', error);
       }
 
       await msg.reply(`👋 ¿Qué quieres hacer ahora?
@@ -180,18 +212,15 @@ Por favor respondé este mensaje con tu nombre completo para finalizar tu inscri
 
 // ---- Inicialización con guardia (nunca en paralelo)
 async function ensureInit() {
-  if (initInProgress) {
-    console.log('⏳ init en curso, omito reintento');
-    return;
-  }
+  if (initInProgress) { log('⏳ init en curso, omito reintento'); return; }
   initInProgress = true;
   try {
     if (!client) client = buildClient();
-    await client.initialize();              // <- jamás en paralelo
+    await client.initialize(); // jamás en paralelo
   } catch (e) {
-    console.error('❌ Error en initialize():', e);
+    log('❌ Error en initialize():', e);
     try { await client?.destroy(); } catch {}
-    client = null;                          // forzar instancia nueva en próximo intento
+    client = null; // forzar nueva instancia en próximo intento
   } finally {
     initInProgress = false;
   }
@@ -200,7 +229,7 @@ async function ensureInit() {
 // ---- Heartbeat (solo informa; no re-inicializa agresivo)
 setInterval(async () => {
   const s = await client?.getState?.().catch(() => 'NO_STATE');
-  console.log('🩺 heartbeat state:', s ?? 'null');
+  log('🩺 heartbeat state:', s ?? 'null');
 }, 10000);
 
 // ---- Arranque
@@ -215,6 +244,7 @@ app.get('/', (_req, res) => {
 });
 
 app.get('/qr', (_req, res) => {
+  if (isReady) return res.status(204).send(); // no mostrar QR si ya está conectado
   if (!lastQRDataURL) return res.status(503).send('⚠️ QR aún no generado. Recarga cada 2–3 segundos hasta que aparezca.');
   const img = Buffer.from(lastQRDataURL.split(',')[1], 'base64');
   res.set('Content-Type', 'image/png');
@@ -222,7 +252,7 @@ app.get('/qr', (_req, res) => {
 });
 
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, ready: !!lastQRDataURL });
+  res.json({ ok: true, ready: isReady, qr: !!lastQRDataURL });
 });
 
 app.get('/state', async (_req, res) => {
@@ -236,12 +266,12 @@ app.get('/state', async (_req, res) => {
 
 app.post('/restart', async (_req, res) => {
   try {
-    console.log('♻️ Reiniciando cliente…');
+    log('♻️ Reiniciando cliente…');
     isReady = false;
     initInProgress = false;
     lastQRDataURL = null;
     try { await client?.destroy(); } catch {}
-    client = null;                 // nueva instancia en ensureInit()
+    client = null; // nueva instancia en ensureInit()
     await ensureInit();
     res.json({ ok: true });
   } catch (e) {
@@ -250,5 +280,5 @@ app.post('/restart', async (_req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`🌐 Servidor web escuchando en http://localhost:${port}`);
+  log(`🌐 Servidor web escuchando en http://localhost:${port}`);
 });
