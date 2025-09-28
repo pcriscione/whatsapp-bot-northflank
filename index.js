@@ -1,5 +1,5 @@
 // --- WhatsApp Bot (Northflank-friendly) ----------------------------------
-// • Instancia única por lockfile (evita dos pods usando la misma sesión)
+// • Instancia única por lockfile EXCLUSIVO (evita dos pods usando la misma sesión)
 // • Una sola inicialización (anti reentrada)
 // • No publica/renueva QR cuando ya está CONNECTED
 // • Reinicio limpio con /restart
@@ -24,31 +24,35 @@ const __dirname = path.dirname(__filename);
 const PID = process.pid;
 const log = (...args) => console.log(`[pid ${PID}]`, ...args);
 
-// ---- Lock de sesión para instancia única (mismo volumen /wwebjs_auth)
+// ---- Lock de sesión EXCLUSIVO para instancia única
 const SESSION_DIR = '/wwebjs_auth';
 const LOCK_PATH = `${SESSION_DIR}/.session.lock`;
-function acquireLock() {
+let lockFd = null;
+function acquireExclusiveLock() {
   try {
     fs.mkdirSync(SESSION_DIR, { recursive: true });
-    if (fs.existsSync(LOCK_PATH)) {
-      // Si el lock es "reciente", asumimos que hay otra instancia viva
-      const { mtimeMs } = fs.statSync(LOCK_PATH);
-      if (Date.now() - mtimeMs < 120000) {
-        log('🔒 Otra instancia ya usa la sesión. Saliendo.');
-        process.exit(0);
-      }
-    }
-    fs.writeFileSync(LOCK_PATH, String(PID));
-    const cleanup = () => { try { fs.unlinkSync(LOCK_PATH); } catch {} };
+    // Intento de creación EXCLUSIVA (atomic). Si existe, otro proceso ya tiene la sesión.
+    lockFd = fs.openSync(LOCK_PATH, 'wx'); // 'w' + exclusive create
+    fs.writeSync(lockFd, String(PID));
+    // Limpieza al salir
+    const cleanup = () => {
+      try { if (lockFd) fs.closeSync(lockFd); } catch {}
+      try { fs.unlinkSync(LOCK_PATH); } catch {}
+    };
     process.on('exit', cleanup);
     process.on('SIGINT', () => { cleanup(); process.exit(0); });
     process.on('SIGTERM', () => { cleanup(); process.exit(0); });
-    log('🔑 Lock de sesión adquirido.');
+    log('🔑 Lock de sesión EXCLUSIVO adquirido.');
   } catch (e) {
-    log('⚠️ No se pudo manejar el lock:', e?.message || e);
+    if (e?.code === 'EEXIST') {
+      log('🔒 Otra instancia ya usa la sesión (lock encontrado). Saliendo.');
+      process.exit(0);
+    }
+    log('⚠️ Error adquiriendo lock:', e?.message || e);
+    // En caso de error inesperado, seguimos sin lock para no quedar en loop.
   }
 }
-acquireLock();
+acquireExclusiveLock();
 
 // ---- Estado app/bot
 const inscripcionesSorteo = new Map();
@@ -107,6 +111,7 @@ function buildClient() {
 
   c.on('authenticated', async () => {
     const s = await c.getState().catch(() => 'NO_STATE');
+    // Si ya estamos listos y vuelve a entrar authenticated, solo informamos.
     log('🔐 authenticated, state =', s);
   });
 
@@ -129,7 +134,7 @@ function buildClient() {
     isReady = false;
     try { await c.destroy(); } catch {}
     client = null; // forzamos nueva instancia
-    // reintento suave tras 2 s (respeta guardia)
+    // Reintento suave tras 2 s (respeta guardia)
     setTimeout(() => ensureInit().catch(() => {}), 2000);
   });
 
