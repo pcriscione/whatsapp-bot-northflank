@@ -26,11 +26,38 @@ const SESSION_DIR = '/wwebjs_auth';
 const LOCK_PATH = `${SESSION_DIR}/.session.lock`;
 let lockFd = null;
 function acquireExclusiveLock() {
+  const STALE_MS = 2 * 60 * 1000; // 2 min: si el lock es más viejo, se considera huérfano
   try {
     fs.mkdirSync(SESSION_DIR, { recursive: true });
-    // 'wx' = crear el archivo en modo escritura, fallar si existe (atómico).
+
+    // ¿Se pidió forzar reset por env?
+    if (process.env.FORCE_LOCK_RESET === 'true') {
+      try { fs.unlinkSync(LOCK_PATH); } catch {}
+    }
+
+    // Si ya existe, ¿está "viejo"? -> bórralo
+    if (fs.existsSync(LOCK_PATH)) {
+      try {
+        const st = fs.statSync(LOCK_PATH);
+        const age = Date.now() - st.mtimeMs;
+        if (age > STALE_MS) {
+          log(`🧹 Lock viejo (~${Math.round(age/1000)}s). Eliminando ${LOCK_PATH}`);
+          fs.unlinkSync(LOCK_PATH);
+        } else {
+          // No está viejo -> respetamos el lock y salimos
+          log('🔒 Otra instancia ya usa la sesión (lock existe, reciente). Saliendo.');
+          process.exit(0);
+        }
+      } catch (err) {
+        log('⚠️ No pude evaluar el lock existente, salgo por seguridad:', err?.message || err);
+        process.exit(0);
+      }
+    }
+
+    // Intentar crear lock atómico
     lockFd = fs.openSync(LOCK_PATH, 'wx');
     fs.writeFileSync(LOCK_PATH, String(PID));
+
     const cleanup = () => {
       try { if (lockFd) fs.closeSync(lockFd); } catch {}
       try { fs.unlinkSync(LOCK_PATH); } catch {}
@@ -38,6 +65,7 @@ function acquireExclusiveLock() {
     process.on('exit', cleanup);
     process.on('SIGINT', () => { cleanup(); process.exit(0); });
     process.on('SIGTERM', () => { cleanup(); process.exit(0); });
+
     log('🔑 Lock exclusivo adquirido');
   } catch (e) {
     if (e?.code === 'EEXIST') {
@@ -45,11 +73,11 @@ function acquireExclusiveLock() {
       process.exit(0);
     } else {
       log('⚠️ Error adquiriendo lock:', e?.message || e);
-      // preferimos salir para no correr riesgo de colisiones
       process.exit(0);
     }
   }
 }
+
 acquireExclusiveLock();
 
 // ---- Estado app/bot
