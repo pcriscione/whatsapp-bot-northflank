@@ -118,14 +118,17 @@ function buildClient() {
 
   c.on('auth_failure', (m) => log('❌ auth_failure:', m));
 
-  c.on('disconnected', async (reason) => {
-    log('⚠️ disconnected:', reason);
-    isReady = false;
-    try { await c.destroy(); } catch {}
-    client = null;                 // forzamos nueva instancia
-    // reintento con pequeño backoff
-    setTimeout(() => ensureInit().catch(() => {}), 3000);
-  });
+c.on('disconnected', async (reason) => {
+  log('⚠️ disconnected, motivo:', reason);
+  if (reason === 'LOGOUT') {
+    log('🔄 Necesita re-escaneo de QR (logout desde el celular o conflicto de sesión)');
+  }
+  isReady = false;
+  try { await c.destroy(); } catch {}
+  client = null;
+  setTimeout(() => ensureInit().catch(() => {}), 3000);
+});
+
 
   // QR: NO publicar si ya está conectado
   c.on('qr', async (qr) => {
