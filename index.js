@@ -60,6 +60,10 @@ let client = null;
 let initInProgress = false;
 let isReady = false;
 
+// ---- Manejo de errores no atrapados (evita crash y loop de reinicios)
+process.on('unhandledRejection', (err) => log('⚠️ unhandledRejection:', err));
+process.on('uncaughtException', (err) => log('⚠️ uncaughtException:', err));
+
 // ---- Fábrica del cliente (listeners se montan UNA vez por instancia)
 function buildClient() {
   const c = new Client({
@@ -70,18 +74,28 @@ function buildClient() {
       remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/wa-version.json',
     },
     puppeteer: {
+      // Config crítico para contenedores (Northflank)
       headless: true,
-      executablePath: puppeteer.executablePath(),
+      executablePath: puppeteer.executablePath(),        // usa Chromium de Puppeteer
+      protocolTimeout: 120_000,                           // margen por latencias en cloud
       defaultViewport: { width: 800, height: 600, deviceScaleFactor: 1 },
       args: [
-        '--no-sandbox','--disable-setuid-sandbox','--disable-dev-shm-usage',
-        '--no-zygote','--disable-gpu','--disable-software-rasterizer',
-        '--disable-extensions','--disable-background-networking',
-        '--disable-default-apps','--no-first-run','--no-default-browser-check',
-        '--mute-audio','--window-size=800,600',
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--no-zygote',
+        '--disable-gpu',
+        '--disable-software-rasterizer',
+        '--disable-extensions',
+        '--disable-background-networking',
+        '--disable-default-apps',
+        '--no-first-run',
+        '--no-default-browser-check',
+        '--mute-audio',
+        '--window-size=800,600',
         '--blink-settings=imagesEnabled=false'
-      ],
-    },
+      ]
+    }
   });
 
   // Listeners con .once para evitar duplicados de logs/acciones por instancia
@@ -94,7 +108,7 @@ function buildClient() {
     isReady = true;
     lastQRDataURL = null; // no más QR tras conectar
     const s = await c.getState().catch(() => 'NO_STATE');
-    log('✅ Bot is ready! state =', s);
+    log('✅ BOT IS READY | state =', s);
   });
 
   c.on('change_state', (s) => {
@@ -109,7 +123,8 @@ function buildClient() {
     isReady = false;
     try { await c.destroy(); } catch {}
     client = null;                 // forzamos nueva instancia
-    setTimeout(() => ensureInit().catch(() => {}), 2000);
+    // reintento con pequeño backoff
+    setTimeout(() => ensureInit().catch(() => {}), 3000);
   });
 
   // QR: NO publicar si ya está conectado
@@ -234,6 +249,7 @@ setInterval(async () => {
 }, 10000);
 
 // Arranque
+log('🚀 Bot iniciando en Northflank…');
 ensureInit().catch(() => {});
 
 // --------------------- Servidor HTTP ---------------------
@@ -276,4 +292,9 @@ app.post('/restart', async (_req, res) => {
   }
 });
 
-app.listen(port, () => log(`🌐 Servidor web escuchando en http://localhost:${port}`));
+const server = app.listen(port, () => log(`🌐 Servidor web escuchando en http://localhost:${port}`));
+
+// Apagado limpio del HTTP server
+process.on('SIGTERM', () => {
+  try { server.close(() => log('🛑 HTTP server cerrado')); } catch {}
+});
