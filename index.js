@@ -227,9 +227,8 @@ c.on('disconnected', async (reason) => {
         break;
       case '2':
         await msg.reply(`⏰ Horarios:
-- Lunes a viernes: 08:30 a 23:00
-- Sábados: 09:00 a 23:00
-- Domingos: 09:00 a 20:00`);
+- Lunes a sábados: 12:00 a 23:00
+- Domingos: 12:00 a 20:00`);
         break;
       case '3':
         await msg.reply(`📅 Para hacer una reserva: https://tinyurl.com/uaxzmbr6`);
