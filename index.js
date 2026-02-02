@@ -7,8 +7,6 @@ import fs from 'fs';
 import pkg from 'whatsapp-web.js';
 const { Client, LocalAuth } = pkg;
 
-
-
 import qrcodeTerminal from 'qrcode-terminal';
 import QRCode from 'qrcode';
 import express from 'express';
@@ -240,7 +238,7 @@ c.on('disconnected', async (reason) => {
         break;
       case '86':
         inscripcionesSorteo.set(msg.from, { estado: 'esperando_nombre', telefono });
-        await msg.reply(`🎁 ¡Estás participando del sorteo!
+        await msg.reply(`🎁 ¡Estás participando del sorteo!!!
 
 Por favor respondé este mensaje con tu nombre completo para finalizar tu inscripción.
 
