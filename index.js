@@ -139,7 +139,7 @@ function buildClient() {
       : {}),
 
     puppeteer: {
-      headless: true,
+      headless: new,
       executablePath: puppeteer.executablePath(),
       protocolTimeout: 300_000,
       timeout: 300_000,
