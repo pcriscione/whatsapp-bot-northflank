@@ -106,23 +106,24 @@ function buildClient() {
       // Config crítico para contenedores (Northflank)
       headless: true,
   //    executablePath: puppeteer.executablePath(),        // usa Chromium de Puppeteer
-      protocolTimeout: 120_000,                           // margen por latencias en cloud
-      defaultViewport: { width: 800, height: 600, deviceScaleFactor: 1 },
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--no-zygote',
-        '--disable-gpu',
-        '--disable-software-rasterizer',
-        '--disable-extensions',
-        '--disable-background-networking',
-        '--disable-default-apps',
-        '--no-first-run',
-        '--no-default-browser-check',
-        '--mute-audio',
-        '--window-size=800,600',
-        '--blink-settings=imagesEnabled=false'
+      protocolTimeout: 300_000,  // 5 min
+  timeout: 300_000,          // timeout de launch/navegación
+  defaultViewport: { width: 800, height: 600, deviceScaleFactor: 1 },
+  args: [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-dev-shm-usage',
+    '--no-zygote',
+    '--disable-gpu',
+    '--disable-software-rasterizer',
+    '--disable-extensions',
+    '--disable-background-networking',
+    '--disable-default-apps',
+    '--no-first-run',
+    '--no-default-browser-check',
+    '--mute-audio',
+    '--window-size=800,600',
+    '--blink-settings=imagesEnabled=false'
       ]
     }
   });
