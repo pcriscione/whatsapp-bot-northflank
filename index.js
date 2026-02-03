@@ -96,12 +96,10 @@ process.on('uncaughtException', (err) => log('⚠️ uncaughtException:', err));
 function buildClient() {
   const c = new Client({
     authStrategy: new LocalAuth({ dataPath: SESSION_DIR }),
-    // webVersion: '2.2412.54', // <- activar solo si necesitas “clavar” versión Web temporalmente
-  //webVersionCache: {
-    //  type: 'remote',
-     // remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/wa-version.json',
-   // },
-    // Evitar dependencias del cache remoto de versión (reduce recargas inesperadas)
+   
+    // ✅ Fija una versión probada de WhatsApp Web (ajustable)
+    webVersion: '2.2412.54',
+    // ✅ Mantén el cache de versión desactivado para respetar el pin
     webVersionCache: { type: 'none' },
   
     puppeteer: {
