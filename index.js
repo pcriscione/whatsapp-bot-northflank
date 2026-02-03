@@ -12,7 +12,7 @@ import QRCode from 'qrcode';
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import puppeteer from 'puppeteer';
+//import puppeteer from 'puppeteer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -105,7 +105,7 @@ function buildClient() {
     puppeteer: {
       // Config crítico para contenedores (Northflank)
       headless: true,
-      executablePath: puppeteer.executablePath(),        // usa Chromium de Puppeteer
+  //    executablePath: puppeteer.executablePath(),        // usa Chromium de Puppeteer
       protocolTimeout: 120_000,                           // margen por latencias en cloud
       defaultViewport: { width: 800, height: 600, deviceScaleFactor: 1 },
       args: [
