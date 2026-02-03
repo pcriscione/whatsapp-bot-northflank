@@ -115,7 +115,7 @@ const c = new Client({
     puppeteer: {
       // Config crítico para contenedores (Northflank)
       headless: true,
-  //    executablePath: puppeteer.executablePath(),        // usa Chromium de Puppeteer
+      executablePath: puppeteer.executablePath(),        // usa Chromium de Puppeteer
       protocolTimeout: 300_000,  // 5 min
   timeout: 300_000,          // timeout de launch/navegación
   defaultViewport: { width: 800, height: 600, deviceScaleFactor: 1 },
