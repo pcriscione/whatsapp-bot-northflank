@@ -98,9 +98,19 @@ function buildClient() {
     authStrategy: new LocalAuth({ dataPath: SESSION_DIR }),
    
     // ✅ Fija una versión probada de WhatsApp Web (ajustable)
-    webVersion: '2.2412.54',
+    //webVersion: '2.2412.54',
     // ✅ Mantén el cache de versión desactivado para respetar el pin
+    //webVersionCache: { type: 'none' },
+  const pinnedWebVersion = process.env.WWEBJS_WEB_VERSION; // ej: "2.x.x"
+
+const c = new Client({
+  authStrategy: new LocalAuth({ dataPath: SESSION_DIR }),
+  ...(pinnedWebVersion ? {
+    webVersion: pinnedWebVersion,
     webVersionCache: { type: 'none' },
+  } : {}),
+  puppeteer: { /* ... */ }
+});
   
     puppeteer: {
       // Config crítico para contenedores (Northflank)
