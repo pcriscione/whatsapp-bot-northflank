@@ -249,8 +249,8 @@ function buildClient() {
 1️⃣ Ver la carta  
 2️⃣ Consultar horarios  
 3️⃣ Hacer una reserva  
-4️⃣ Conocer nuestra ubicación`);
-
+4️⃣ Conocer nuestra ubicación
+5️⃣ Hablar con un humano`);      
       return;
     }
 
@@ -271,6 +271,11 @@ function buildClient() {
           "📍 Paseo Colina Sur 14500, local 102 y 106. https://maps.app.goo.gl/rECKibRJ2Sz6RgfZA"
         );
         break;
+      case "5":
+        await msg.reply(
+          "☎️ Favor llámanos a este mismo número por teléfono (no por whatsapp) en horario de atención."
+        );
+      break;  
       case "86":
         inscripcionesSorteo.set(msg.from, { estado: "esperando_nombre", telefono });
         await msg.reply(`🎁 ¡Estás participando del sorteo!!!
