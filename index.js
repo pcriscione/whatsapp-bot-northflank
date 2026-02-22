@@ -249,8 +249,8 @@ function buildClient() {
 1️⃣ Ver la carta  
 2️⃣ Consultar horarios  
 3️⃣ Hacer una reserva  
-4️⃣ Conocer nuestra ubicación
-5️⃣ Hablar con un humano`);      
+4️⃣ Conocer ubicación
+5️⃣ Hablar con humano`);      
       return;
     }
 
@@ -289,7 +289,8 @@ Por favor respondé este mensaje con tu nombre completo para finalizar tu inscri
 1️⃣ Ver la carta  
 2️⃣ Consultar horarios  
 3️⃣ Hacer una reserva  
-4️⃣ Conocer nuestra ubicación`);
+4️⃣ Conocer ubicación
+5️⃣ Hablar con humano`);  
     }
   });
 
