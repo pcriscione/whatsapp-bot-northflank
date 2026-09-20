@@ -14,8 +14,6 @@
     "humano": "☎️ Favor llámanos a este mismo número por teléfono (no por whatsapp) en horario de atención."
   },
   "sorteo": {
-    "enabled": true,
-    "codigo": "86",
-    "sheetsWebhookUrlEnvVar": "LA_PRINCESA_SHEETS_WEBHOOK_URL"
+    "enabled": false
   }
 }

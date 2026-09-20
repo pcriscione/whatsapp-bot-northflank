@@ -14,8 +14,6 @@
     "humano": "☎️ (test) Favor llámanos a este mismo número por teléfono en horario de atención."
   },
   "sorteo": {
-    "enabled": true,
-    "codigo": "86",
-    "sheetsWebhookUrl": null
+    "enabled": false
   }
 }

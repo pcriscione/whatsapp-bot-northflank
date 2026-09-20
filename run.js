@@ -13,13 +13,13 @@ function parseTenantArg() {
   return arg?.split("=")[1];
 }
 
-function buildRepository(logger) {
+async function buildRepository(logger) {
   const { SUPABASE_URL, SUPABASE_KEY } = process.env;
   if (SUPABASE_URL && SUPABASE_KEY) {
     logger.info("Usando SupabaseLeadsRepository");
-    return new SupabaseLeadsRepository({ supabaseUrl: SUPABASE_URL, supabaseKey: SUPABASE_KEY });
+    return SupabaseLeadsRepository.create({ supabaseUrl: SUPABASE_URL, supabaseKey: SUPABASE_KEY });
   }
-  logger.warn("SUPABASE_URL/SUPABASE_KEY no configurados — usando InMemoryLeadsRepository (NO usar en producción real)");
+  logger.warn("SUPABASE_URL/SUPABASE_KEY no configurados — usando InMemoryLeadsRepository (se pierde en cada restart, igual que v1 hoy)");
   return new InMemoryLeadsRepository();
 }
 

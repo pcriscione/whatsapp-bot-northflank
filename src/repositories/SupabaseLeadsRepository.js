@@ -1,11 +1,16 @@
-import { createClient } from "@supabase/supabase-js";
-
 const TABLE = "leads_sorteo";
 
 // Requiere la tabla creada por schema.sql. Ver ARCHITECTURE.md sección 4.
+// Import dinámico de @supabase/supabase-js: así no hace falta tenerla instalada
+// cuando el tenant corre con InMemoryLeadsRepository (Supabase no configurado).
 export class SupabaseLeadsRepository {
-  constructor({ supabaseUrl, supabaseKey }) {
-    this.client = createClient(supabaseUrl, supabaseKey);
+  constructor({ client }) {
+    this.client = client;
+  }
+
+  static async create({ supabaseUrl, supabaseKey }) {
+    const { createClient } = await import("@supabase/supabase-js");
+    return new SupabaseLeadsRepository({ client: createClient(supabaseUrl, supabaseKey) });
   }
 
   async upsert({ tenantId, telefono, estado, nombre }) {
