@@ -22,7 +22,8 @@ const PID = process.pid;
 const log = (...args) => console.log(`[pid ${PID}]`, ...args);
 
 // ---- Lock EXCLUSIVO por archivo
-const SESSION_DIR = "/wwebjs_auth";
+// [BRANCH DE PRUEBA pintest-webversion] sesión separada, nunca la productiva.
+const SESSION_DIR = "/wwebjs_auth_pintest";
 const LOCK_PATH = `${SESSION_DIR}/.session.lock`;
 let lockFd = null;
 
@@ -173,19 +174,23 @@ async function wipeSessionKeepLock() {
   log("🧽 Sesión limpiada (manteniendo lock)");
 }
 
+// [BRANCH DE PRUEBA pintest-webversion] build confirmado estable antes del bug
+// del 16/9/2026 (ver applySerializedPatch). Se prueba acá, sobre sesión nueva,
+// antes de llevarlo a producción -- el intento anterior sobre una sesión YA
+// autenticada con otra versión provocó un LOGOUT forzado.
+const PINTEST_WEB_VERSION = "2.3000.1045601094-alpha";
+
 // ---- Fábrica del cliente (sin reconexión aquí; solo listeners normales)
 function buildClient() {
-  const pinnedWebVersion = process.env.WWEBJS_WEB_VERSION; // ej: "2.x.x"
+  const pinnedWebVersion = process.env.WWEBJS_WEB_VERSION || PINTEST_WEB_VERSION;
 
   const c = new Client({
     authStrategy: new LocalAuth({ dataPath: SESSION_DIR }),
-
-    ...(pinnedWebVersion
-      ? {
-          webVersion: pinnedWebVersion,
-          webVersionCache: { type: "none" },
-        }
-      : {}),
+    webVersion: pinnedWebVersion,
+    webVersionCache: {
+      type: "remote",
+      remotePath: "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/{version}.html",
+    },
 
     puppeteer: {
       headless: "new",
