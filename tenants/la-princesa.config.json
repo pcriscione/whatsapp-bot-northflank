@@ -1,7 +1,7 @@
 {
   "tenantId": "la-princesa",
   "botName": "Alma",
-  "sessionDir": "/wwebjs_auth/la-princesa",
+  "sessionDir": "/wwebjs_auth",
   "httpPort": 3001,
   "restartTokenEnvVar": "LA_PRINCESA_RESTART_TOKEN",
   "allowlistEnvVar": "LA_PRINCESA_ALLOWLIST",
