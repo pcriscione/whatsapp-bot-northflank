@@ -1,3 +1,6 @@
 node_modules
 .session
 .wwebjs_auth
+.wwebjs_cache
+qr.png
+contactos_whatsapp.csv
