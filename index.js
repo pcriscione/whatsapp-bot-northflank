@@ -160,19 +160,25 @@ async function wipeSessionKeepLock() {
   log("🧽 Sesión limpiada (manteniendo lock)");
 }
 
+// Ultimo build de WhatsApp Web confirmado estable en este bot (cacheado en el server
+// el 20/8/2026, sin errores hasta el bug del 16/9/2026 - ver applySerializedPatch arriba).
+// Hotfix temporal mientras el rename _serialized->$1 no tenga fix oficial mergeado.
+const DEFAULT_PINNED_WEB_VERSION = "2.3000.1045601094-alpha";
+
 // ---- Fábrica del cliente (sin reconexión aquí; solo listeners normales)
 function buildClient() {
-  const pinnedWebVersion = process.env.WWEBJS_WEB_VERSION; // ej: "2.x.x"
+  // OJO: el soporte anterior de WWEBJS_WEB_VERSION usaba webVersionCache:{type:"none"},
+  // que NO pinnea nada (solo desactiva el cache y sigue trayendo la version mas nueva
+  // de WhatsApp). El pin real requiere type:"remote" + remotePath a un HTML archivado.
+  const pinnedWebVersion = process.env.WWEBJS_WEB_VERSION || DEFAULT_PINNED_WEB_VERSION;
 
   const c = new Client({
     authStrategy: new LocalAuth({ dataPath: SESSION_DIR }),
-
-    ...(pinnedWebVersion
-      ? {
-          webVersion: pinnedWebVersion,
-          webVersionCache: { type: "none" },
-        }
-      : {}),
+    webVersion: pinnedWebVersion,
+    webVersionCache: {
+      type: "remote",
+      remotePath: "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/{version}.html",
+    },
 
     puppeteer: {
       headless: "new",
