@@ -173,19 +173,22 @@ async function wipeSessionKeepLock() {
   log("🧽 Sesión limpiada (manteniendo lock)");
 }
 
+// Ultimo build de WhatsApp Web confirmado estable (validado en sesión de prueba
+// aislada, branch pintest-webversion, 20/9/2026) desde antes del bug del 16/9/2026
+// que rompe window.Store / sendMessage / el evento "message" en whatsapp-web.js.
+const DEFAULT_PINNED_WEB_VERSION = "2.3000.1045601094-alpha";
+
 // ---- Fábrica del cliente (sin reconexión aquí; solo listeners normales)
 function buildClient() {
-  const pinnedWebVersion = process.env.WWEBJS_WEB_VERSION; // ej: "2.x.x"
+  const pinnedWebVersion = process.env.WWEBJS_WEB_VERSION || DEFAULT_PINNED_WEB_VERSION;
 
   const c = new Client({
     authStrategy: new LocalAuth({ dataPath: SESSION_DIR }),
-
-    ...(pinnedWebVersion
-      ? {
-          webVersion: pinnedWebVersion,
-          webVersionCache: { type: "none" },
-        }
-      : {}),
+    webVersion: pinnedWebVersion,
+    webVersionCache: {
+      type: "remote",
+      remotePath: "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/{version}.html",
+    },
 
     puppeteer: {
       headless: "new",
