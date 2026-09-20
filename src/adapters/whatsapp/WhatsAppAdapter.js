@@ -10,6 +10,15 @@ const { Client, LocalAuth } = pkg;
 
 const RECONNECT_DELAY_MS = 10_000;
 
+// Ultimo build de WhatsApp Web confirmado estable (incidente del 20/9/2026, ver
+// INCIDENTS.md en main). WhatsApp cambia su frontend con frecuencia y puede romper
+// whatsapp-web.js sin aviso -- si vuelve a pasar, buscar un build mas nuevo confirmado
+// estable en https://github.com/wppconnect-team/wa-version y actualizar este valor
+// (o pasar WWEBJS_WEB_VERSION por env para no tocar código).
+const DEFAULT_WEB_VERSION = "2.3000.1045601094-alpha";
+const WEB_VERSION_REMOTE_PATH =
+  "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/{version}.html";
+
 // Misma estrategia de conexión/reconexión que el index.js productivo (probada en Vultr),
 // solo extraída a una clase reutilizable por tenant.
 export class WhatsAppAdapter {
@@ -42,9 +51,8 @@ export class WhatsAppAdapter {
   buildClient() {
     const c = new Client({
       authStrategy: new LocalAuth({ dataPath: this.sessionDir }),
-      ...(this.webVersion
-        ? { webVersion: this.webVersion, webVersionCache: { type: "none" } }
-        : {}),
+      webVersion: this.webVersion || DEFAULT_WEB_VERSION,
+      webVersionCache: { type: "remote", remotePath: WEB_VERSION_REMOTE_PATH },
       puppeteer: {
         headless: "new",
         executablePath: puppeteer.executablePath(),
@@ -73,6 +81,9 @@ export class WhatsAppAdapter {
     c.once("authenticated", async () => {
       const s = await c.getState().catch(() => "NO_STATE");
       this.logger.info("authenticated, state =", s);
+      this.applySerializedPatch(c).catch((e) =>
+        this.logger.error("Error aplicando parche _serialized:", e)
+      );
     });
 
     c.once("ready", async () => {
@@ -180,6 +191,39 @@ export class WhatsAppAdapter {
 
   safeDestroy(c) {
     return c?.destroy?.().catch(() => {});
+  }
+
+  // Defensa adicional además del pin de versión (ver DEFAULT_WEB_VERSION arriba):
+  // si WhatsApp vuelve a renombrar _serialized->$1 en un build futuro, esto evita
+  // que sendMessage/reply se rompan del todo. No-op si _serialized ya funciona.
+  async applySerializedPatch(c) {
+    for (let attempt = 0; attempt < 30; attempt++) {
+      try {
+        const applied = await c.pupPage.evaluate(() => {
+          try {
+            const MsgKey = window.require && window.require("WAWebMsgKey");
+            if (!MsgKey?.prototype) return false;
+            if (!Object.getOwnPropertyDescriptor(MsgKey.prototype, "_serialized")) {
+              Object.defineProperty(MsgKey.prototype, "_serialized", {
+                get() { return this.$1 ?? this.toString(); },
+                configurable: true,
+              });
+            }
+            return true;
+          } catch {
+            return false;
+          }
+        });
+        if (applied) {
+          this.logger.info("Parche _serialized aplicado");
+          return;
+        }
+      } catch {
+        // pupPage todavía no está listo para evaluate, seguimos reintentando
+      }
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    this.logger.warn("No se pudo aplicar el parche _serialized tras 30 intentos");
   }
 
   async restart() {

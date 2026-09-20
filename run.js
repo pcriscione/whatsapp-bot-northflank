@@ -50,11 +50,18 @@ async function main() {
     logger,
     webVersion: process.env.WWEBJS_WEB_VERSION,
     onIncomingMessage: async (msg) => {
+      logger.info("mensaje entrante de", msg.from, "| body:", JSON.stringify((msg.body || "").slice(0, 30)));
+
       const actions = await conversationEngine.handleIncomingMessage({ from: msg.from, body: msg.body });
 
       for (const action of actions) {
         if (action.type === "reply") {
-          await msg.reply(action.text);
+          try {
+            const result = await msg.reply(action.text);
+            logger.info("reply() resolvió. ack:", result?.ack, "id:", result?.id?._serialized ?? "sin id");
+          } catch (err) {
+            logger.error("reply() FALLÓ:", err?.stack || err);
+          }
         } else if (action.type === "sheetsExport") {
           await exportToSheets({ url: action.url, nombre: action.nombre, telefono: action.telefono, logger });
         }
