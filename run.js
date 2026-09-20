@@ -34,6 +34,12 @@ async function main() {
     tenantConfig.sorteo.sheetsWebhookUrl = process.env[tenantConfig.sorteo.sheetsWebhookUrlEnvVar] || null;
   }
 
+  // Igual que la URL de Sheets: la allowlist de test nunca vive en el JSON versionado.
+  if (tenantConfig.allowlistEnvVar) {
+    const raw = process.env[tenantConfig.allowlistEnvVar] || "";
+    tenantConfig.allowlist = raw.split(",").map((s) => s.trim()).filter(Boolean);
+  }
+
   const repository = buildRepository(logger);
   const leadsService = new LeadsService({ repository });
   const conversationEngine = new ConversationEngine({ tenantConfig, leadsService });

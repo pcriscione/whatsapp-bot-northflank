@@ -22,12 +22,19 @@ export class ConversationEngine {
   }
 
   async handleIncomingMessage({ from, body }) {
-    if (this.isInCooldown(from)) return [];
-
     const texto = (body || "").trim().toLowerCase();
     const telefono = (from || "").split("@")[0] || "";
     const tenantId = this.tenantConfig.tenantId;
-    const { textos, sorteo } = this.tenantConfig;
+    const { textos, sorteo, allowlist } = this.tenantConfig;
+
+    // Solo para tenants de test: si hay allowlist configurada, ignora a cualquiera
+    // que no esté en la lista (para no responderle a contactos reales de un número
+    // personal usado temporalmente como sesión de prueba).
+    if (Array.isArray(allowlist) && allowlist.length > 0 && !allowlist.includes(telefono)) {
+      return [];
+    }
+
+    if (this.isInCooldown(from)) return [];
 
     const pendiente = await this.leadsService.getPending({ tenantId, telefono });
 

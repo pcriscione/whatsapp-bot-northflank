@@ -16,6 +16,10 @@ export function validateTenantConfig(config) {
     errors.push("sorteo.enabled=true pero falta sorteo.codigo");
   }
 
+  if (config.allowlistEnvVar !== undefined && typeof config.allowlistEnvVar !== "string") {
+    errors.push("allowlistEnvVar debe ser un string (nombre de variable de entorno)");
+  }
+
   if (errors.length > 0) {
     throw new Error(`Config de tenant inválida (${config.tenantId ?? "?"}):\n- ${errors.join("\n- ")}`);
   }
