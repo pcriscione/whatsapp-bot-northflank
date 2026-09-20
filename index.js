@@ -99,6 +99,19 @@ function safeDestroy(c) {
   return c?.destroy?.().catch(() => {});
 }
 
+// --- Diagnóstico temporal: para saber si msg.reply() cuelga, tira error, o
+// resuelve sin enviar de verdad (ver incidente de sept/2026). Sacar cuando se
+// confirme la causa raíz.
+async function safeReply(msg, text) {
+  log("➡️ Intentando responder a", msg.from);
+  try {
+    const result = await msg.reply(text);
+    log("✅ reply() resolvió. ack:", result?.ack, "id:", result?.id?._serialized ?? result?.id?.$1 ?? "sin id");
+  } catch (err) {
+    log("❌ reply() FALLÓ:", err?.stack || err);
+  }
+}
+
 // --- Parche temporal: WhatsApp Web (build 2.3000.x, ~16 sept 2026) renombró la
 // propiedad interna "_serialized" a "$1" en WID/MsgKey, lo que rompe sendMessage()/
 // reply() en whatsapp-web.js (incluso en la última versión, 1.34.7). Ver:
@@ -244,6 +257,8 @@ function buildClient() {
 
   // Mensajes (tus respuestas)
   c.on("message", async (msg) => {
+    log("📩 mensaje entrante de", msg.from, "| body:", JSON.stringify((msg.body || "").slice(0, 30)));
+
     if (msg.fromMe) return;
     if (msg.from === "status@broadcast") return;
     if (msg.from.endsWith("@g.us")) return;
@@ -264,7 +279,8 @@ function buildClient() {
       usuario.nombre = (msg.body || "").trim();
       usuario.estado = "completado";
 
-      await msg.reply(
+      await safeReply(
+        msg,
         `✅ ¡Gracias ${usuario.nombre}! Estás participando del sorteo con el número ${usuario.telefono}. ¡Mucha suerte! 🎉`
       );
 
@@ -282,52 +298,54 @@ function buildClient() {
         log("❌ Error al enviar datos a Google Sheets:", error);
       }
 
-      await msg.reply(`👋 ¿Qué quieres hacer ahora?
-1️⃣ Ver la carta  
-2️⃣ Consultar horarios  
-3️⃣ Hacer una reserva  
+      await safeReply(msg, `👋 ¿Qué quieres hacer ahora?
+1️⃣ Ver la carta
+2️⃣ Consultar horarios
+3️⃣ Hacer una reserva
 4️⃣ Conocer ubicación
-5️⃣ Hablar con humano`);      
+5️⃣ Hablar con humano`);
       return;
     }
 
     switch (texto) {
       case "1":
-        await msg.reply("🍽️ Ambas cartas: https://www.laprincesa.cl/carta");
+        await safeReply(msg, "🍽️ Ambas cartas: https://www.laprincesa.cl/carta");
         break;
       case "2":
-        await msg.reply(`⏰ Horarios:
+        await safeReply(msg, `⏰ Horarios:
 - Lunes a sábados: 12:00 a 23:00
 - Domingos: 12:00 a 20:00`);
         break;
       case "3":
-        await msg.reply("📅 Para hacer una reserva: https://tinyurl.com/uaxzmbr6");
+        await safeReply(msg, "📅 Para hacer una reserva: https://tinyurl.com/uaxzmbr6");
         break;
       case "4":
-        await msg.reply(
+        await safeReply(
+          msg,
           "📍 Paseo Colina Sur 14500, local 102 y 106. https://maps.app.goo.gl/rECKibRJ2Sz6RgfZA"
         );
         break;
       case "5":
-        await msg.reply(
+        await safeReply(
+          msg,
           "☎️ Favor llámanos a este mismo número por teléfono (no por whatsapp) en horario de atención."
         );
-      break;  
+      break;
       case "86":
         inscripcionesSorteo.set(msg.from, { estado: "esperando_nombre", telefono });
-        await msg.reply(`🎁 ¡Estás participando del sorteo!!!
+        await safeReply(msg, `🎁 ¡Estás participando del sorteo!!!
 
 Por favor respondé este mensaje con tu nombre completo para finalizar tu inscripción.
 
 ✅ Hemos registrado tu número: ${telefono}`);
         break;
       default:
-        await msg.reply(`👋 ¡Hola! Soy Alma, bot de La Princesa y Ramona. ¿Qué quieres hacer?
-1️⃣ Ver la carta  
-2️⃣ Consultar horarios  
-3️⃣ Hacer una reserva  
+        await safeReply(msg, `👋 ¡Hola! Soy Alma, bot de La Princesa y Ramona. ¿Qué quieres hacer?
+1️⃣ Ver la carta
+2️⃣ Consultar horarios
+3️⃣ Hacer una reserva
 4️⃣ Conocer ubicación
-5️⃣ Hablar con humano`);  
+5️⃣ Hablar con humano`);
     }
   });
 
