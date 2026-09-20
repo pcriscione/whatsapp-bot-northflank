@@ -1,0 +1,20 @@
+{
+  "tenantId": "la-princesa",
+  "botName": "Alma",
+  "sessionDir": "/wwebjs_auth/la-princesa",
+  "httpPort": 3001,
+  "restartTokenEnvVar": "LA_PRINCESA_RESTART_TOKEN",
+  "textos": {
+    "saludo": "👋 ¡Hola! Soy Alma, bot de La Princesa y Ramona. ¿Qué quieres hacer?\n1️⃣ Ver la carta\n2️⃣ Consultar horarios\n3️⃣ Hacer una reserva\n4️⃣ Conocer ubicación\n5️⃣ Hablar con humano",
+    "horarios": "⏰ Horarios:\n- Lunes a sábados: 12:00 a 23:00\n- Domingos: 12:00 a 20:00",
+    "carta": "🍽️ Ambas cartas: https://www.laprincesa.cl/carta",
+    "reservas": "📅 Para hacer una reserva: https://tinyurl.com/uaxzmbr6",
+    "ubicacion": "📍 Paseo Colina Sur 14500, local 102 y 106. https://maps.app.goo.gl/rECKibRJ2Sz6RgfZA",
+    "humano": "☎️ Favor llámanos a este mismo número por teléfono (no por whatsapp) en horario de atención."
+  },
+  "sorteo": {
+    "enabled": true,
+    "codigo": "86",
+    "sheetsWebhookUrlEnvVar": "LA_PRINCESA_SHEETS_WEBHOOK_URL"
+  }
+}

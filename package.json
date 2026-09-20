@@ -4,11 +4,12 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node index.js"
+    "start": "node run.js",
+    "start:legacy": "node index.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.45.4",
     "express": "4.19.2",
-    "mysql2": "3.9.6",
     "puppeteer": "22.15.0",
     "qrcode": "1.5.3",
     "qrcode-terminal": "0.12.0",

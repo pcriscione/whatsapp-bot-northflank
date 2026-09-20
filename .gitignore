@@ -4,3 +4,4 @@ node_modules
 .wwebjs_cache
 qr.png
 contactos_whatsapp.csv
+.env
