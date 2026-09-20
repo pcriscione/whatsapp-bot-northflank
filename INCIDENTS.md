@@ -54,3 +54,25 @@ sesión de prueba aislada.
 - Si hay que aplicar un pin de versión a una sesión ya pareada, asumir que probablemente
   haga falta re-parear desde cero (borrar la sesión, QR nuevo) en vez de esperar que
   reconecte sola.
+
+## 2026-09-20 (continuación) — Dos hallazgos más durante la migración a v2
+
+**No correr dos instancias de Puppeteer en el mismo VPS.** Al probar el esqueleto de
+v2 (`node run.js --tenant=test`) en paralelo, con producción (v1) corriendo al mismo
+tiempo en este VPS chico, producción tuvo `Execution context was destroyed` /
+`Attempted to use detached Frame` casi al instante y quedó deslogueada (QR de nuevo).
+Conclusión: el servidor no tiene recursos para correr dos Chromium headless a la vez
+de forma confiable. **Para futuras pruebas de otro tenant/bot, usar una máquina
+separada, o parar producción (`pm2 stop`) mientras dure la prueba.**
+
+**Ignorar mensajes viejos al re-vincular.** Cada vez que el dispositivo se re-vincula
+(pasó varias veces este día), WhatsApp sincroniza historial reciente de chats al nuevo
+dispositivo, y el evento `message` de `whatsapp-web.js` se dispara también para esos
+mensajes viejos — el bot terminó respondiéndole a clientes que habían escrito hace
+meses. Fix: descartar cualquier mensaje entrante cuyo `msg.timestamp` tenga más de 5
+minutos de antigüedad, antes de procesarlo. Aplicado en `index.js` (production) y
+pendiente de portar a v2 cuando se retome esa migración.
+
+**Endpoints sin autenticación corregidos**: `/qr` y `/restart` ahora requieren
+`Authorization: Bearer <RESTART_TOKEN>` (variable de entorno, nunca hardcodeada). Sin
+la variable configurada, quedan bloqueados por defecto (fail-closed).
