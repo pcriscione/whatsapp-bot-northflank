@@ -259,8 +259,19 @@ function buildClient() {
   });
 
   // Mensajes (tus respuestas)
+  const MAX_MESSAGE_AGE_SEC = 5 * 60; // 5 min
+
   c.on("message", async (msg) => {
     log("📩 mensaje entrante de", msg.from, "| body:", JSON.stringify((msg.body || "").slice(0, 30)));
+
+    // Al re-vincular el dispositivo, WhatsApp sincroniza historial reciente y
+    // dispara "message" para esos mensajes viejos también — sin este chequeo,
+    // el bot les responde a clientes que escribieron hace días/meses.
+    const ageSec = Date.now() / 1000 - (msg.timestamp || 0);
+    if (ageSec > MAX_MESSAGE_AGE_SEC) {
+      log(`⏭️ Ignorando mensaje viejo (${Math.round(ageSec)}s) de`, msg.from);
+      return;
+    }
 
     if (msg.fromMe) return;
     if (msg.from === "status@broadcast") return;
@@ -414,9 +425,22 @@ ensureInit().catch(() => {});
 const app = express();
 const port = process.env.PORT || 3000;
 
+// /qr y /restart exponen la sesión de WhatsApp (secuestro de sesión) o pueden
+// tirar abajo el bot sin auth — requieren token. Configurar RESTART_TOKEN en el
+// entorno (nunca hardcodeado). Sin token configurado, ambos quedan bloqueados
+// por seguridad (fail-closed) en vez de quedar abiertos.
+function requireToken(req, res, next) {
+  const expected = process.env.RESTART_TOKEN;
+  if (!expected) return res.status(500).json({ error: "Falta configurar RESTART_TOKEN en el entorno" });
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  if (token !== expected) return res.status(401).json({ error: "unauthorized" });
+  next();
+}
+
 app.get("/", (_req, res) => res.send("🟢 Bot de WhatsApp activo en Northflank"));
 
-app.get("/qr", (_req, res) => {
+app.get("/qr", requireToken, (_req, res) => {
   if (isReady) return res.status(204).send(); // no mostrar QR si ya está conectado
   if (!lastQRDataURL) return res.status(503).send("⚠️ QR aún no generado. Recarga cada 2–3 s.");
   const img = Buffer.from(lastQRDataURL.split(",")[1], "base64");
@@ -437,7 +461,7 @@ app.get("/health", (_req, res) =>
   res.json({ ok: true, ready: isReady, qr: !!lastQRDataURL })
 );
 
-app.post("/restart", async (_req, res) => {
+app.post("/restart", requireToken, async (_req, res) => {
   try {
     log("♻️ Reiniciando cliente…");
     isReady = false;
