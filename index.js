@@ -99,6 +99,42 @@ function safeDestroy(c) {
   return c?.destroy?.().catch(() => {});
 }
 
+// --- Parche temporal: WhatsApp Web (build 2.3000.x, ~16 sept 2026) renombró la
+// propiedad interna "_serialized" a "$1" en WID/MsgKey, lo que rompe sendMessage()/
+// reply() en whatsapp-web.js (incluso en la última versión, 1.34.7). Ver:
+// https://github.com/wwebjs/whatsapp-web.js/issues/201919
+// Reintenta porque el objeto interno puede no estar cargado todavía justo al
+// dispararse "authenticated". Sacar este parche cuando la librería lo arregle upstream.
+async function applySerializedPatch(c) {
+  for (let attempt = 0; attempt < 30; attempt++) {
+    try {
+      const applied = await c.pupPage.evaluate(() => {
+        try {
+          const MsgKey = window.require && window.require("WAWebMsgKey");
+          if (!MsgKey?.prototype) return false;
+          if (!Object.getOwnPropertyDescriptor(MsgKey.prototype, "_serialized")) {
+            Object.defineProperty(MsgKey.prototype, "_serialized", {
+              get() { return this.$1 ?? this.toString(); },
+              configurable: true,
+            });
+          }
+          return true;
+        } catch {
+          return false;
+        }
+      });
+      if (applied) {
+        log("🩹 Parche _serialized aplicado");
+        return;
+      }
+    } catch {
+      // pupPage todavía no está listo para evaluate, seguimos reintentando
+    }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  log("⚠️ No se pudo aplicar el parche _serialized tras 30 intentos");
+}
+
 // Limpia la sesión SIN borrar el lock (para evitar que otro pod "entre")
 async function wipeSessionKeepLock() {
   const fsp = await import("fs/promises");
@@ -167,6 +203,7 @@ function buildClient() {
   c.once("authenticated", async () => {
     const s = await c.getState().catch(() => "NO_STATE");
     log("🔐 authenticated, state =", s);
+    applySerializedPatch(c).catch((e) => log("⚠️ Error aplicando parche _serialized:", e));
   });
 
   c.once("ready", async () => {
