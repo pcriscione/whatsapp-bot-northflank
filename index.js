@@ -303,7 +303,7 @@ function buildClient() {
       alertEpisodeOpen = true;
       notify(
         "📵 Bot de WhatsApp desvinculado",
-        "El bot está pidiendo QR y NO responde mensajes. Entrá al VPS, corré `pm2 logs whatsapp --lines 0` y escaneá el QR desde el teléfono del bot (Dispositivos vinculados).",
+        "El bot está pidiendo QR y NO responde mensajes. Entrá al VPS, corré `pm2 logs whatsapp-bot --lines 0` y escaneá el QR desde el teléfono del bot (Dispositivos vinculados).",
         5,
         ["rotating_light"]
       );

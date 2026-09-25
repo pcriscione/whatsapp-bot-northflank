@@ -1,7 +1,7 @@
 # WhatsApp Bot — Alma (La Princesa y Ramona)
 
 Bot de respuestas automáticas sobre `whatsapp-web.js` (WhatsApp Web no oficial vía Puppeteer).
-Corre en el VPS de Vultr `64.176.18.3` con PM2 (proceso `whatsapp`).
+Corre en el VPS de Vultr `64.176.18.3` con PM2 (proceso `whatsapp-bot`, carpeta `/root/botwhatsapp`).
 
 ## Correr local
 ```bash
@@ -26,13 +26,13 @@ Avisa también cuando se recupera. El QR nunca se manda por la alerta.
 ## Redeploy (VPS)
 ```bash
 ssh root@64.176.18.3
-cd <carpeta del bot>        # ver con: pm2 describe whatsapp  (campo "exec cwd")
+cd /root/botwhatsapp
 git pull
-pm2 restart whatsapp --update-env
+pm2 restart whatsapp-bot --update-env
 pm2 save
 ```
 
 ## Re-vincular (cuando pide QR)
-`pm2 logs whatsapp --lines 0` y escanear desde el teléfono del bot: WhatsApp → Dispositivos vinculados → Vincular un dispositivo.
+`pm2 logs whatsapp-bot --lines 0` y escanear desde el teléfono del bot: WhatsApp → Dispositivos vinculados → Vincular un dispositivo.
 
 Historial de problemas y lecciones: `INCIDENTS.md`.
