@@ -22,6 +22,8 @@ El 25/9/2026 apareció desvinculado; se re-vinculó ese día y quedaron deployad
 3. Revisar si el pin de versión de agosto está causando los logouts; evaluar actualizar whatsapp-web.js cuando haya fix upstream.
 4. Portar filtro de mensajes viejos a v2 (si se retoma la migración).
 
+5. Mejorar el bot (textos, imágenes, entender texto libre, pausa con humano). El usuario trae referencias visuales; restricción: gratis, sin API oficial (sin botones/listas interactivas).
+
 ## Problemas conocidos
 - `whatsapp-web.js` no es oficial: WhatsApp puede desvincular la sesión en cualquier momento.
 - El caso "CONNECTED pero ciego" (incidente 20/9) no lo detecta la alerta.
