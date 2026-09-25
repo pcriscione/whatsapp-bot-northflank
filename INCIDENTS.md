@@ -76,3 +76,19 @@ pendiente de portar a v2 cuando se retome esa migración.
 **Endpoints sin autenticación corregidos**: `/qr` y `/restart` ahora requieren
 `Authorization: Bearer <RESTART_TOKEN>` (variable de entorno, nunca hardcodeada). Sin
 la variable configurada, quedan bloqueados por defecto (fail-closed).
+
+## 2026-09-25 — Bot desvinculado (pedía QR) + reinicio del VPS
+
+**Síntoma**: el bot no respondía; los logs mostraban QR en loop y `heartbeat state: null`.
+Causa de la desvinculación todavía sin confirmar (pendiente revisar `disconnected|logout` en logs).
+
+**Resolución**: re-vincular escaneando el QR (`pm2 logs whatsapp-bot --lines 0`). Se agregaron
+alertas push vía ntfy.sh para enterarse en minutos de futuras desvinculaciones.
+
+**Lecciones**:
+- El proceso PM2 se llama `whatsapp-bot` (en los logs aparece cortado como `0|whatsapp`) y vive
+  en `/root/botwhatsapp`. Tras reiniciar el VPS, PM2 lo levanta solo. **No** crear otro con
+  `pm2 start` (dos instancias = desvinculación).
+- **Justo después de vincular, esperar ~5 min antes de probar.** En el primer minuto los mensajes
+  entrantes llegan con `body: ""` (el dispositivo nuevo todavía no tiene las claves de cifrado)
+  y las respuestas quedan en `ack: 0` (pendientes). Se normaliza solo; no es un bug nuevo.
