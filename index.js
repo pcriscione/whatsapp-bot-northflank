@@ -90,6 +90,53 @@ let client = null;
 let initInFlight = null;
 let isReady = false;
 
+// ---- Alertas push (ntfy.sh, gratis y sin cuenta) --------------------------
+// Avisa al teléfono cuando el bot se desvincula, pide QR o queda colgado sin
+// conectar. Configurar ALERT_NTFY_TOPIC (nombre largo y difícil de adivinar:
+// cualquiera que lo conozca puede leer las alertas) y suscribirse a ese topic en
+// la app ntfy. Nunca se manda el QR por acá: con el QR se secuestra la sesión.
+const NTFY_SERVER = process.env.ALERT_NTFY_SERVER || "https://ntfy.sh";
+const NTFY_TOPIC = process.env.ALERT_NTFY_TOPIC;
+const STUCK_ALERT_MS = 10 * 60 * 1000; // sin conectar por 10 min => alerta
+const QR_ALERT_COOLDOWN_MS = 30 * 60 * 1000; // no repetir "pide QR" más de 1 vez cada 30 min
+
+let notReadySince = Date.now();
+let stuckAlertSent = false;
+let lastQRAlertAt = 0;
+let alertEpisodeOpen = false; // hubo alerta de caída => avisar cuando se recupere
+
+async function notify(title, message, priority = 4, tags = ["warning"]) {
+  if (!NTFY_TOPIC) {
+    log("🔕 (alerta sin enviar, falta ALERT_NTFY_TOPIC):", title, "-", message);
+    return;
+  }
+  try {
+    const resp = await fetch(NTFY_SERVER, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ topic: NTFY_TOPIC, title, message, priority, tags }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!resp.ok) log("⚠️ ntfy respondió", resp.status, await resp.text().catch(() => ""));
+    else log("📣 Alerta enviada:", title);
+  } catch (err) {
+    log("⚠️ No se pudo enviar la alerta:", err?.message || err);
+  }
+}
+
+function markNotReady() {
+  if (notReadySince === null) notReadySince = Date.now();
+}
+
+function markReady() {
+  notReadySince = null;
+  stuckAlertSent = false;
+  if (alertEpisodeOpen) {
+    alertEpisodeOpen = false;
+    notify("✅ Bot de WhatsApp conectado", "El bot volvió a estar vinculado y respondiendo.", 3, ["white_check_mark"]);
+  }
+}
+
 // ---- Manejo de errores no atrapados (evita crash y loop de reinicios)
 process.on("unhandledRejection", (err) => log("⚠️ unhandledRejection:", err?.stack || err));
 process.on("uncaughtException", (err) => log("⚠️ uncaughtException:", err?.stack || err));
@@ -227,14 +274,21 @@ function buildClient() {
     lastQRDataURL = null; // no más QR tras conectar
     const s = await c.getState().catch(() => "NO_STATE");
     log("✅ BOT IS READY | state =", s);
+    markReady();
   });
 
   c.on("change_state", (s) => {
     isReady = s === "CONNECTED";
     log("🔁 change_state:", s);
+    if (isReady) markReady();
+    else markNotReady();
   });
 
-  c.on("auth_failure", (m) => log("❌ auth_failure:", m));
+  c.on("auth_failure", (m) => {
+    log("❌ auth_failure:", m);
+    alertEpisodeOpen = true;
+    notify("❌ Bot de WhatsApp: falló la autenticación", `Motivo: ${m}. Probablemente haya que volver a escanear el QR.`, 5);
+  });
 
   // QR: NO publicar si ya está conectado
   c.on("qr", async (qr) => {
@@ -243,6 +297,17 @@ function buildClient() {
       return;
     }
     log("🟩 QR solicitado (cliente pidió autenticación)");
+    markNotReady();
+    if (Date.now() - lastQRAlertAt > QR_ALERT_COOLDOWN_MS) {
+      lastQRAlertAt = Date.now();
+      alertEpisodeOpen = true;
+      notify(
+        "📵 Bot de WhatsApp desvinculado",
+        "El bot está pidiendo QR y NO responde mensajes. Entrá al VPS, corré `pm2 logs whatsapp --lines 0` y escaneá el QR desde el teléfono del bot (Dispositivos vinculados).",
+        5,
+        ["rotating_light"]
+      );
+    }
     try { qrcodeTerminal.generate(qr, { small: true }); } catch {}
     try {
       lastQRDataURL = await QRCode.toDataURL(qr);
@@ -385,6 +450,9 @@ async function ensureInit() {
     // ÚNICO manejo de desconexión aquí
     client.once("disconnected", async (reason) => {
       log(`⚠️ disconnected, motivo: ${reason}`);
+      markNotReady();
+      alertEpisodeOpen = true;
+      notify("⚠️ Bot de WhatsApp desconectado", `Motivo: ${reason}. Intentando reconectar solo en 10 s.`, 4);
 
       // evita promesas usando frames muertos
       await safeDestroy(client);
@@ -415,6 +483,17 @@ async function ensureInit() {
 setInterval(async () => {
   const s = await client?.getState?.().catch(() => "NO_STATE");
   log("🩺 heartbeat state:", s ?? "null");
+
+  // Cubre el caso "colgado en state: null" sin QR ni error (ver INCIDENTS.md)
+  if (!isReady && notReadySince !== null && !stuckAlertSent && Date.now() - notReadySince > STUCK_ALERT_MS) {
+    stuckAlertSent = true;
+    alertEpisodeOpen = true;
+    notify(
+      "⏳ Bot de WhatsApp sin conectar",
+      `Lleva más de ${STUCK_ALERT_MS / 60000} min sin estar listo (estado: ${s ?? "null"}). No está respondiendo mensajes.`,
+      5
+    );
+  }
 }, 10_000);
 
 // Arranque
