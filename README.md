@@ -23,6 +23,12 @@ El bot manda una notificación push (app **ntfy**, gratis, suscripta al topic) c
 se desconecta, pide QR (máx. 1 cada 30 min), falla la autenticación, o lleva más de 10 min sin conectar.
 Avisa también cuando se recupera. El QR nunca se manda por la alerta.
 
+## Reinicio diario preventivo
+PM2 reinicia el bot todos los días a las 08:00 UTC (05:00 Chile en verano / 04:00 en invierno)
+para liberar la memoria que acumula Chromium (VPS de 1 GB). Reutiliza la sesión, no pide QR.
+Configurado con `pm2 restart whatsapp-bot --cron-restart="0 8 * * *" && pm2 save`.
+Ver: `pm2 describe whatsapp-bot | grep -i cron`.
+
 ## Redeploy (VPS)
 ```bash
 ssh root@64.176.18.3

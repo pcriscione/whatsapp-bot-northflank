@@ -12,6 +12,7 @@ El 25/9/2026 apareció desvinculado; se re-vinculó ese día y quedaron deployad
 - Ignorar mensajes viejos al re-vincular; auth en `/qr` y `/restart`.
 - Alertas push (desconexión, QR, auth_failure, colgado >10 min, recuperación).
 - Auto-recuperación cuando Chromium muere (`NO_STATE` 3 min => re-init), deployada 27/9.
+- Reinicio diario preventivo por PM2 a las 08:00 UTC (27/9).
 
 ## Decisiones
 - No migrar a WhatsApp Cloud API oficial: el usuario no quiere pagar (25/9/2026).
