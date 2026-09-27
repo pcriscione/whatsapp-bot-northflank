@@ -92,3 +92,17 @@ alertas push vía ntfy.sh para enterarse en minutos de futuras desvinculaciones.
 - **Justo después de vincular, esperar ~5 min antes de probar.** En el primer minuto los mensajes
   entrantes llegan con `body: ""` (el dispositivo nuevo todavía no tiene las claves de cifrado)
   y las respuestas quedan en `ack: 0` (pendientes). Se normaliza solo; no es un bug nuevo.
+
+## 2026-09-27 — Bot muerto sin alerta (`NO_STATE`)
+
+**Síntoma**: el bot no respondía y no llegó ninguna alerta. El heartbeat mostraba
+`NO_STATE` en loop (mismo PID desde el 25/9): `getState()` tiraba error porque la página
+de WhatsApp Web / Chromium había muerto. Causa de fondo sin confirmar (¿memoria del VPS?).
+
+**Por qué no alertó**: Chromium murió sin disparar `disconnected` ni `change_state`, así que
+`isReady` quedó en `true` y la alerta de "colgado" (que miraba `isReady`) nunca se activó.
+
+**Fix**: el heartbeat ahora usa el estado real. Con `NO_STATE` sostenido 3 min se
+re-inicializa solo (reutiliza la sesión, sin QR) y avisa "🚑 reiniciando solo"; si en 10 min
+no vuelve a `CONNECTED`, alerta "⏳ sin conectar". `safeDestroy` tiene timeout de 30 s para
+no colgarse con un Chromium muerto. Se recuperó con `pm2 restart` sin re-vincular.

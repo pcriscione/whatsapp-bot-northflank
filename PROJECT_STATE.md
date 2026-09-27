@@ -11,6 +11,7 @@ El 25/9/2026 apareció desvinculado; se re-vinculó ese día y quedaron deployad
 - Pin de WhatsApp Web a `2.3000.1045601094-alpha` (incidente 20/9, ver INCIDENTS.md).
 - Ignorar mensajes viejos al re-vincular; auth en `/qr` y `/restart`.
 - Alertas push (desconexión, QR, auth_failure, colgado >10 min, recuperación).
+- Auto-recuperación cuando Chromium muere (`NO_STATE` 3 min => re-init), deployada 27/9.
 
 ## Decisiones
 - No migrar a WhatsApp Cloud API oficial: el usuario no quiere pagar (25/9/2026).
@@ -27,6 +28,7 @@ El 25/9/2026 apareció desvinculado; se re-vinculó ese día y quedaron deployad
 ## Problemas conocidos
 - `whatsapp-web.js` no es oficial: WhatsApp puede desvincular la sesión en cualquier momento.
 - El caso "CONNECTED pero ciego" (incidente 20/9) no lo detecta la alerta.
+- Causa de la muerte de Chromium del 27/9 sin confirmar (sospecha: memoria del VPS).
 - No se puede SSH sin la contraseña de root (no hay clave en la PC del usuario).
 
 ## Archivos relevantes
