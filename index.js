@@ -142,8 +142,11 @@ process.on("unhandledRejection", (err) => log("⚠️ unhandledRejection:", err?
 process.on("uncaughtException", (err) => log("⚠️ uncaughtException:", err?.stack || err));
 
 // === helpers de ciclo de vida ===
+// Con timeout: si Chromium ya está muerto, destroy() puede no resolver nunca.
 function safeDestroy(c) {
-  return c?.destroy?.().catch(() => {});
+  const destroyed = c?.destroy?.().catch(() => {});
+  if (!destroyed) return Promise.resolve();
+  return Promise.race([destroyed, new Promise((r) => setTimeout(r, 30_000))]);
 }
 
 // --- Diagnóstico temporal: para saber si msg.reply() cuelga, tira error, o
@@ -440,15 +443,20 @@ async function ensureInit() {
 
     // Si existía algo, destruye antes
     if (client) {
-      await safeDestroy(client);
-      client = null;
+      const old = client;
+      client = null; // antes de destroy: su "disconnected" queda ignorado
       isReady = false;
+      await safeDestroy(old);
     }
 
     client = buildClient();
 
     // ÚNICO manejo de desconexión aquí
-    client.once("disconnected", async (reason) => {
+    const thisClient = client;
+    thisClient.once("disconnected", async (reason) => {
+      // Si ya se reemplazó el cliente (p. ej. auto-recuperación del heartbeat),
+      // este evento es del cliente viejo destruido: no re-inicializar de nuevo.
+      if (client !== thisClient) return;
       log(`⚠️ disconnected, motivo: ${reason}`);
       markNotReady();
       alertEpisodeOpen = true;
@@ -479,13 +487,50 @@ async function ensureInit() {
   });
 }
 
-// Heartbeat (solo informa)
+// Heartbeat: informa, alerta y se auto-recupera si la página de WhatsApp Web murió.
+// NO_STATE = getState() tira error (Chromium/página caída o frame desconectado).
+// Ahí no se dispara ni "disconnected" ni "change_state", así que isReady queda en
+// true aunque el bot esté muerto (incidente 27/9/2026) — por eso el heartbeat
+// usa el estado real y no isReady.
+const NO_STATE_RECOVER_MS = 3 * 60 * 1000; // NO_STATE sostenido => re-inicializar
+const AUTO_RECOVER_COOLDOWN_MS = 10 * 60 * 1000;
+let noStateSince = null;
+let lastAutoRecoverAt = 0;
+
 setInterval(async () => {
   const s = await client?.getState?.().catch(() => "NO_STATE");
   log("🩺 heartbeat state:", s ?? "null");
 
-  // Cubre el caso "colgado en state: null" sin QR ni error (ver INCIDENTS.md)
-  if (!isReady && notReadySince !== null && !stuckAlertSent && Date.now() - notReadySince > STUCK_ALERT_MS) {
+  if (s === "CONNECTED") {
+    noStateSince = null;
+    if (!isReady) isReady = true;
+    if (notReadySince !== null) markReady();
+    return;
+  }
+
+  markNotReady();
+
+  if (s === "NO_STATE") {
+    isReady = false;
+    if (noStateSince === null) noStateSince = Date.now();
+    const canRecover =
+      !initInFlight &&
+      Date.now() - noStateSince > NO_STATE_RECOVER_MS &&
+      Date.now() - lastAutoRecoverAt > AUTO_RECOVER_COOLDOWN_MS;
+    if (canRecover) {
+      lastAutoRecoverAt = Date.now();
+      noStateSince = null;
+      alertEpisodeOpen = true;
+      log("🚑 NO_STATE sostenido: re-inicializando cliente (la sesión guardada se reutiliza)");
+      notify("🚑 Bot de WhatsApp caído: reiniciando solo", "La página de WhatsApp Web dejó de responder. El bot se está reiniciando automáticamente; si vuelve, te llega el aviso de conectado.", 4);
+      ensureInit().catch((e) => log("❌ auto-recuperación falló", e?.message || e));
+    }
+  } else {
+    noStateSince = null;
+  }
+
+  // Cubre el caso "colgado" sin QR ni error (ver INCIDENTS.md)
+  if (notReadySince !== null && !stuckAlertSent && Date.now() - notReadySince > STUCK_ALERT_MS) {
     stuckAlertSent = true;
     alertEpisodeOpen = true;
     notify(
