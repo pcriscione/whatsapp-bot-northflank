@@ -229,16 +229,26 @@ async function wipeSessionKeepLock() {
 const DEFAULT_PINNED_WEB_VERSION = "2.3000.1045601094-alpha";
 
 // ---- Fábrica del cliente (sin reconexión aquí; solo listeners normales)
-function buildClient() {
-  const pinnedWebVersion = process.env.WWEBJS_WEB_VERSION || DEFAULT_PINNED_WEB_VERSION;
-
-  const c = new Client({
-    authStrategy: new LocalAuth({ dataPath: SESSION_DIR }),
-    webVersion: pinnedWebVersion,
+// Desde el 28/9/2026 NO se pinnea por defecto: con el build viejo WhatsApp forzaba LOGOUT
+// cada pocos días (ver INCIDENTS.md). La librería se instala desde el commit upstream con
+// el fix de "$1" (PR #201832), así que se usa el WhatsApp Web actual. Para volver al pin
+// (rollback), setear WWEBJS_WEB_VERSION=2.3000.1045601094-alpha (DEFAULT_PINNED_WEB_VERSION).
+function webVersionOptions() {
+  const pinned = process.env.WWEBJS_WEB_VERSION;
+  if (!pinned) return { webVersionCache: { type: "none" } };
+  return {
+    webVersion: pinned,
     webVersionCache: {
       type: "remote",
       remotePath: "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/{version}.html",
     },
+  };
+}
+
+function buildClient() {
+  const c = new Client({
+    authStrategy: new LocalAuth({ dataPath: SESSION_DIR }),
+    ...webVersionOptions(),
 
     puppeteer: {
       headless: "new",
@@ -542,7 +552,10 @@ setInterval(async () => {
 }, 10_000);
 
 // Arranque
-log("🚀 Bot iniciando en Northflank…");
+log(
+  "🚀 Bot iniciando…",
+  process.env.WWEBJS_WEB_VERSION ? `(WA Web pinneado a ${process.env.WWEBJS_WEB_VERSION})` : "(WA Web actual, sin pin)"
+);
 ensureInit().catch(() => {});
 
 // --------------------- Servidor HTTP ---------------------
