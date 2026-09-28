@@ -106,3 +106,21 @@ de WhatsApp Web / Chromium había muerto. Causa de fondo sin confirmar (¿memori
 re-inicializa solo (reutiliza la sesión, sin QR) y avisa "🚑 reiniciando solo"; si en 10 min
 no vuelve a `CONNECTED`, alerta "⏳ sin conectar". `safeDestroy` tiene timeout de 30 s para
 no colgarse con un Chromium muerto. Se recuperó con `pm2 restart` sin re-vincular.
+
+## 2026-09-28 — Segunda desvinculación en 3 días (`LOGOUT`)
+
+**Cronología (UTC; Chile = UTC-3)**: 06:40 el heartbeat pasa de `CONNECTED` a `null` sin
+ningún evento (ni `change_state` ni error). 07:45 la página de WhatsApp Web se recarga sola
+("Execution context was destroyed, most likely because of a navigation") y enseguida
+`disconnected, motivo: LOGOUT` → sesión borrada → QR. Re-vinculado a las 12:47 UTC.
+Las alertas funcionaron (⏳ 06:51, ⚠️/📵 07:45 y 📵 cada 30 min), pero era de madrugada.
+
+**Hipótesis principal (no confirmada)**: WhatsApp fuerza el logout de clientes con versión
+desactualizada — el bot está pinneado desde el 20/9 a un build de agosto
+(`2.3000.1045601094-alpha`). Las dos desvinculaciones (25/9 y 28/9) ocurrieron con el pin.
+El 24/9 hubo "detached Frame" en `Client.inject` antes del logout del 25/9.
+
+**Salida posible**: upstream mergeó el 26/9 el fix del rename `_serialized → $1`
+(PR #201832, commit `58ddf15`), todavía no publicado en npm (última: 1.34.7). Plan: instalar
+`whatsapp-web.js` desde ese commit y quitar el pin de versión, **probándolo primero en una PC
+con un número de prueba** (nunca en el VPS en paralelo con producción).
