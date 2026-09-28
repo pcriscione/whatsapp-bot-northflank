@@ -124,3 +124,8 @@ El 24/9 hubo "detached Frame" en `Client.inject` antes del logout del 25/9.
 (PR #201832, commit `58ddf15`), todavía no publicado en npm (última: 1.34.7). Plan: instalar
 `whatsapp-web.js` desde ese commit y quitar el pin de versión, **probándolo primero en una PC
 con un número de prueba** (nunca en el VPS en paralelo con producción).
+
+**Aplicado (28/9, 13:07 UTC)**: se deployó directo en producción (no había número de prueba):
+`git pull && npm install --omit=dev`, `pm2 stop`, borrar `/wwebjs_auth/session` y
+`.wwebjs_cache`, `pm2 start`, QR nuevo. Vinculó y responde. Queda por ver si se mantiene
+vinculado varios días; si vuelve el LOGOUT, la causa no era el pin.

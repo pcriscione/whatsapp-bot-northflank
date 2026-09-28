@@ -13,13 +13,14 @@ El 25/9/2026 apareció desvinculado; se re-vinculó ese día y quedaron deployad
 - Alertas push (desconexión, QR, auth_failure, colgado >10 min, recuperación).
 - Auto-recuperación cuando Chromium muere (`NO_STATE` 3 min => re-init), deployada 27/9.
 - Reinicio diario preventivo por PM2 a las 08:00 UTC (27/9).
+- 28/9: sin pin de WA Web + whatsapp-web.js desde GitHub commit 58ddf15 (fix `$1`), probado en producción (el usuario no tenía número de prueba). Re-vinculado y respondiendo. Rollback: `WWEBJS_WEB_VERSION=2.3000.1045601094-alpha` + re-vincular.
 
 ## Decisiones
 - No migrar a WhatsApp Cloud API oficial: el usuario no quiere pagar (25/9/2026).
 - Alertas por ntfy.sh: gratis, sin cuenta ni credenciales. El QR nunca viaja por la alerta.
 
 ## Pendientes
-0. PRIORIDAD: probar whatsapp-web.js desde GitHub commit 58ddf15 (fix $1) SIN pin de versión, en PC con número de prueba; si anda, deployar y re-vincular (ver INCIDENTS 28/9).
+0. Monitorear si el bot se mantiene vinculado sin pin (deploy 28/9 13:07 UTC). Si vuelve a LOGOUT, la hipótesis del pin no era la causa. Cuando whatsapp-web.js publique >1.34.7 en npm, volver a versión de npm.
 1. Verificar que `RESTART_TOKEN` siga en el env de PM2 tras el restart con `--update-env`.
 2. Averiguar por qué se desvinculó el 25/9 (grep de `disconnected|auth_failure|logout` en `pm2 logs`).
 3. Revisar si el pin de versión de agosto está causando los logouts; evaluar actualizar whatsapp-web.js cuando haya fix upstream.
