@@ -4,3 +4,7 @@ node_modules
 .wwebjs_cache
 qr.png
 contactos_whatsapp.csv
+
+# Token de avisos de reservas (se copia al entorno PM2 del VPS, nunca a git)
+.staff-notify-token.txt
+.env

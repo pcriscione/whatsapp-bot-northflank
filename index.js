@@ -551,6 +551,104 @@ setInterval(async () => {
   }
 }, 10_000);
 
+// ---- Avisos de reservas al grupo del equipo -------------------------------
+// El sistema de reservas (Reserva Princesa, Cloud Run) deja en una cola un aviso
+// ya armado por cada reserva creada/modificada/cancelada. Cada 30 s el bot la
+// consulta por HTTPS y publica los pendientes en el grupo del equipo. Es el bot
+// el que pregunta (y no el backend el que le envía) para no exponer el puerto
+// 3000 sin HTTPS; si el bot está caído, los avisos esperan en la cola (hasta 2 h).
+// APAGADO salvo que existan STAFF_NOTIFY_TOKEN y STAFF_GROUP_NAME o STAFF_GROUP_ID.
+// No toca el menú ni la sesión; el bot sigue sin responder mensajes de grupos.
+const STAFF_NOTIFY_API =
+  process.env.STAFF_NOTIFY_API || "https://reserva-princesa-api-915541986201.us-central1.run.app";
+const STAFF_NOTIFY_TOKEN = process.env.STAFF_NOTIFY_TOKEN;
+const STAFF_GROUP_NAME = process.env.STAFF_GROUP_NAME;
+const STAFF_POLL_MS = 30_000;
+const STAFF_SEND_GAP_MS = 1_500; // pausa entre mensajes seguidos
+const staffNotifyEnabled = Boolean(STAFF_NOTIFY_TOKEN && (process.env.STAFF_GROUP_ID || STAFF_GROUP_NAME));
+
+let staffGroupId = process.env.STAFF_GROUP_ID || null;
+let staffPollInFlight = false;
+let staffGroupAlertSent = false;
+
+async function staffApi(pathname, init = {}) {
+  return fetch(`${STAFF_NOTIFY_API}${pathname}`, {
+    ...init,
+    headers: { Authorization: `Bearer ${STAFF_NOTIFY_TOKEN}`, ...(init.headers || {}) },
+    signal: AbortSignal.timeout(15_000),
+  });
+}
+
+// Busca el grupo por nombre una sola vez (getChats() es pesado en un VPS de
+// 1 GB). El ID queda en el log para fijarlo con STAFF_GROUP_ID.
+async function resolveStaffGroupId() {
+  if (staffGroupId) return staffGroupId;
+  const chats = await client.getChats();
+  const matches = chats.filter((c) => c.isGroup && c.name === STAFF_GROUP_NAME);
+  if (matches.length !== 1) {
+    log(`⚠️ Avisos: ${matches.length} grupos llamados "${STAFF_GROUP_NAME}" (se necesita exactamente 1). No se envía nada.`);
+    if (!staffGroupAlertSent) {
+      staffGroupAlertSent = true;
+      notify(
+        "⚠️ Avisos de reservas sin grupo",
+        `Se encontraron ${matches.length} grupos llamados "${STAFF_GROUP_NAME}". Revisá que el número del bot esté en el grupo y que el nombre sea único.`,
+        4
+      );
+    }
+    return null;
+  }
+  // Mismo cuidado que safeReply: tras el rename de WhatsApp Web (INCIDENTS.md,
+  // 20/9) el ID puede venir como `$1` en vez de `_serialized`.
+  const id = matches[0].id;
+  staffGroupId = id?._serialized ?? id?.$1 ?? (id?.user ? `${id.user}@g.us` : null);
+  if (!staffGroupId) {
+    log("⚠️ Avisos: no se pudo leer el ID del grupo", JSON.stringify(id));
+    return null;
+  }
+  log(`👥 Grupo de avisos encontrado: "${STAFF_GROUP_NAME}" = ${staffGroupId} (fijalo con STAFF_GROUP_ID=${staffGroupId})`);
+  return staffGroupId;
+}
+
+async function pollStaffNotifications() {
+  if (!staffNotifyEnabled || staffPollInFlight || !client || !isReady) return;
+  staffPollInFlight = true;
+  try {
+    const state = await client.getState().catch(() => "NO_STATE");
+    if (state !== "CONNECTED") return;
+
+    const resp = await staffApi("/api/internal/staff-notifications?limit=10");
+    if (!resp.ok) {
+      log("⚠️ Avisos: la API respondió", resp.status, await resp.text().catch(() => ""));
+      return;
+    }
+    const pending = await resp.json();
+    if (!pending.length) return;
+
+    const groupId = await resolveStaffGroupId();
+    if (!groupId) return;
+
+    for (const item of pending) {
+      await client.sendMessage(groupId, item.message);
+      const ack = await staffApi(`/api/internal/staff-notifications/${item.id}/sent`, { method: "POST" });
+      if (!ack.ok) log("⚠️ Avisos: no se pudo marcar como enviado", item.id, ack.status);
+      else log("📨 Aviso de reserva publicado en el grupo:", item.event, item.id);
+      await new Promise((r) => setTimeout(r, STAFF_SEND_GAP_MS));
+    }
+  } catch (err) {
+    // Se reintenta en la próxima vuelta: lo no marcado sigue pendiente.
+    log("⚠️ Avisos: error publicando en el grupo:", err?.message || err);
+  } finally {
+    staffPollInFlight = false;
+  }
+}
+
+if (staffNotifyEnabled) {
+  log(`📨 Avisos de reservas ACTIVADOS (grupo: ${process.env.STAFF_GROUP_ID || `"${STAFF_GROUP_NAME}"`})`);
+  setInterval(() => pollStaffNotifications().catch(() => {}), STAFF_POLL_MS);
+} else {
+  log("📭 Avisos de reservas desactivados (faltan STAFF_NOTIFY_TOKEN y STAFF_GROUP_NAME/STAFF_GROUP_ID)");
+}
+
 // Arranque
 log(
   "🚀 Bot iniciando…",

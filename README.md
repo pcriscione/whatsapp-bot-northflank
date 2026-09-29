@@ -17,6 +17,16 @@ HTTP en el puerto 3000: `/health`, `/state`, `/qr` y `POST /restart` (estos dos 
 | `ALERT_NTFY_TOPIC` | Topic de ntfy.sh para alertas push al teléfono. Sin ella solo se loguea. |
 | `ALERT_NTFY_SERVER` | Opcional, default `https://ntfy.sh`. |
 | `WWEBJS_WEB_VERSION` | Opcional, pisa la versión fijada de WhatsApp Web (ver `INCIDENTS.md`). |
+| `STAFF_NOTIFY_TOKEN` | Token para leer la cola de avisos de reservas (Reserva Princesa). Sin él, los avisos están apagados. |
+| `STAFF_GROUP_NAME` | Nombre exacto del grupo donde publicar los avisos (`Reservas`). Debe ser único. |
+| `STAFF_GROUP_ID` | Opcional: ID del grupo (`...@g.us`), lo escribe el bot en el log la primera vez. Evita buscar por nombre. |
+| `STAFF_NOTIFY_API` | Opcional: URL del backend de reservas (default: Cloud Run de producción). |
+
+## Avisos de reservas al grupo del equipo
+Cada 30 s el bot consulta por HTTPS la cola de avisos de Reserva Princesa y publica en el grupo
+`STAFF_GROUP_NAME` cada reserva nueva, modificada o cancelada de La Princesa y Ramona. Apagado si
+falta `STAFF_NOTIFY_TOKEN`. El número del bot tiene que estar en el grupo. El bot sigue sin responder
+mensajes que lleguen de grupos. Detalle en `Reserva Princesa/DECISIONS.md`, "Fase 26".
 
 ## Alertas
 El bot manda una notificación push (app **ntfy**, gratis, suscripta al topic) cuando:
