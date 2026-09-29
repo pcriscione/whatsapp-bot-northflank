@@ -20,9 +20,10 @@ El 25/9/2026 apareció desvinculado; se re-vinculó ese día y quedaron deployad
 - Alertas por ntfy.sh: gratis, sin cuenta ni credenciales. El QR nunca viaja por la alerta.
 
 ## Pendientes
-- (28/9) Avisos de reservas al grupo "Reservas": código listo y probado con simulaciones, commit
-  local sin pushear. Para activar: push, en el VPS `git pull`, setear `STAFF_NOTIFY_TOKEN` y
-  `STAFF_GROUP_NAME=Reservas` en el entorno de PM2, `pm2 restart whatsapp-bot --update-env`.
+- Avisos de reservas al grupo "Reservas": ACTIVOS desde el 29/9 01:11 UTC (primer aviso real en
+  17 s). Env PM2: `STAFF_NOTIFY_TOKEN`, `STAFF_GROUP_NAME` (además de `RESTART_TOKEN`,
+  `TEST_RESTART_TOKEN`, `ALERT_NTFY_TOPIC`, que se conservaron al usar `--update-env`). Pendiente:
+  fijar `STAFF_GROUP_ID` con el ID que el bot escribe en el log ("👥 Grupo de avisos encontrado").
 0. Monitorear si el bot se mantiene vinculado sin pin (deploy 28/9 13:07 UTC). Si vuelve a LOGOUT, la hipótesis del pin no era la causa. Cuando whatsapp-web.js publique >1.34.7 en npm, volver a versión de npm.
 1. Verificar que `RESTART_TOKEN` siga en el env de PM2 tras el restart con `--update-env`.
 2. Averiguar por qué se desvinculó el 25/9 (grep de `disconnected|auth_failure|logout` en `pm2 logs`).
