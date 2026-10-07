@@ -20,7 +20,7 @@ El 25/9/2026 apareció desvinculado; se re-vinculó ese día y quedaron deployad
 - Alertas por ntfy.sh: gratis, sin cuenta ni credenciales. El QR nunca viaja por la alerta.
 
 ## Pendientes
-- 7/10: opción 3 (reservas) ahora responde `https://reservas.laprincesa.cl/wa` (302 a `/r/la-princesa?source=whatsapp`, regla en `_redirects` de Reserva Princesa, ya en producción). En `main`, falta `git pull` + `pm2 restart` en el VPS.
+- 7/10: opción 3 (reservas) ahora responde `https://reservas.laprincesa.cl/wa` (302 a `/r/la-princesa?source=whatsapp`, regla en `_redirects` de Reserva Princesa, ya en producción). Deployado en el VPS el 7/10 22:31 UTC.
 - Avisos de reservas al grupo "Reservas": ACTIVOS desde el 29/9 01:11 UTC (primer aviso real en
   17 s). Env PM2: `STAFF_NOTIFY_TOKEN`, `STAFF_GROUP_NAME` (además de `RESTART_TOKEN`,
   `TEST_RESTART_TOKEN`, `ALERT_NTFY_TOPIC`, que se conservaron al usar `--update-env`). Pendiente:
@@ -37,7 +37,7 @@ El 25/9/2026 apareció desvinculado; se re-vinculó ese día y quedaron deployad
 - `whatsapp-web.js` no es oficial: WhatsApp puede desvincular la sesión en cualquier momento.
 - El caso "CONNECTED pero ciego" (incidente 20/9) no lo detecta la alerta.
 - Causa de la muerte de Chromium del 27/9 sin confirmar (sospecha: memoria del VPS).
-- No se puede SSH sin la contraseña de root (no hay clave en la PC del usuario).
+- SSH por clave desde la PC del usuario (`~/.ssh/id_ed25519`, cargada en root@64.176.18.3 el 7/10): Claude puede hacer pull/restart directo.
 
 ## Archivos relevantes
 - `index.js`, `INCIDENTS.md`, `README.md`
