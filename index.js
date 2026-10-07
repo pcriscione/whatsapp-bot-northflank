@@ -409,7 +409,7 @@ function buildClient() {
 - Domingos: 12:00 a 20:00`);
         break;
       case "3":
-        await safeReply(msg, "📅 Para hacer una reserva: https://tinyurl.com/uaxzmbr6");
+        await safeReply(msg, "📅 Para hacer una reserva: https://reservas.laprincesa.cl/r/la-princesa?source=whatsapp");
         break;
       case "4":
         await safeReply(
