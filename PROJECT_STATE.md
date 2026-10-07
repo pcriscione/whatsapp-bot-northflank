@@ -20,6 +20,7 @@ El 25/9/2026 apareció desvinculado; se re-vinculó ese día y quedaron deployad
 - Alertas por ntfy.sh: gratis, sin cuenta ni credenciales. El QR nunca viaja por la alerta.
 
 ## Pendientes
+- 7/10: opción 3 (reservas) ahora responde `https://reservas.laprincesa.cl/wa` (302 a `/r/la-princesa?source=whatsapp`, regla en `_redirects` de Reserva Princesa, ya en producción). En `main`, falta `git pull` + `pm2 restart` en el VPS.
 - Avisos de reservas al grupo "Reservas": ACTIVOS desde el 29/9 01:11 UTC (primer aviso real en
   17 s). Env PM2: `STAFF_NOTIFY_TOKEN`, `STAFF_GROUP_NAME` (además de `RESTART_TOKEN`,
   `TEST_RESTART_TOKEN`, `ALERT_NTFY_TOPIC`, que se conservaron al usar `--update-env`). Pendiente:
